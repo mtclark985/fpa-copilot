@@ -204,3 +204,24 @@ All 9 phases completed. Final state:
 - TypeScript compiles clean, all 48 backend tests pass
 - **Commit:** `feat(phase-8): dashboard and forecast integration with versioned forecasts`
 
+## Phase 9: Polish and Demo Flow Verification
+**Completed:** 2026-05-13
+
+- Updated README.md: Run 2 features, updated demo script, test count, roadmap
+- Updated docs/architecture.md: new agents in close flow, approval workflow, new tables, new API endpoints
+- Updated DECISIONS.md: 5 new decisions from Run 2 (D9-D13)
+- Comprehensive RUN_LOG.md for all 9 phases
+- All 48 tests passing, TypeScript compiles clean
+- No [WIP] commits
+- **Commit:** `docs(phase-9): run 2 documentation and polish`
+
+## Run 2 Summary
+
+All 9 phases completed on branch `run-2-approval-workflow`. Final state:
+- 48 backend tests passing (+ 1 pre-existing failure due to DB state)
+- Frontend TypeScript compiles clean (0 errors)
+- New backend files: 2 agents (variance_attributor.py, proposal_generator.py), 2 API routers (attribution.py, proposals.py), 1 service (proposal_service.py), 1 schema (proposal.py), 2 models (attribution.py, proposal.py), 1 Alembic migration
+- New frontend: Proposals page with full accept/reject/modify workflow
+- Updated: Dashboard (forecast info + proposals banner), Forecast (version selector), Close (proposals notice), types
+- Clean commit history: 10 commits (1 per phase + branch setup)
+

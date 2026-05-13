@@ -13,7 +13,11 @@ A living forecast platform where the comp expense forecast continuously updates 
 - **Monthly simulation** that generates payroll actuals with intentional variances (unplanned hires, departures, retention bonuses, off-cycle adjustments)
 - **Variance calculation** with volume/rate decomposition and materiality scoring
 - **AI variance detection** agent (Claude) that reviews each material variance and provides severity assessment, rationale, and suggested actions
-- **Polished UI** with dashboard KPIs, forecast tables, variance drill-down, and one-click monthly close
+- **AI variance attribution** agent that traces variances to specific drivers (early hires, departures, comp adjustments)
+- **AI forecast proposal** agent that generates structured forecast update proposals from attributions
+- **Approval workflow** — review, accept, reject, or modify-and-accept forecast change proposals
+- **Forecast versioning** — each accepted proposal creates a new forecast version with full audit trail
+- **Polished UI** with dashboard KPIs, forecast tables (with version selector), variance drill-down, proposals page, and one-click monthly close
 
 ## Tech Stack
 
@@ -70,10 +74,11 @@ Then use the Close page to advance months — the variance detection agent will 
 
 Here's what to click to see the system in action:
 
-1. **Dashboard** — See KPI cards (504 headcount, ~$47M YTD actuals), the actual-vs-forecast chart, and agent activity feed
-2. **Forecast** — Browse the 18-month forecast by cost center. Filter by category (salary, bonus, benefits, taxes). Export to CSV.
+1. **Dashboard** — See KPI cards (headcount, YTD actuals), the actual-vs-forecast chart, active forecast version, and agent activity feed. If proposals are pending, a yellow banner links to the Proposals page.
+2. **Forecast** — Browse the 18-month forecast by cost center. Use the version selector to compare current vs. prior forecast versions. Filter by category (salary, bonus, benefits, taxes). Export to CSV.
 3. **Variances** — Click through months to see variances sorted by materiality. Click any row for the drill-down panel showing volume/rate decomposition.
-4. **Close** — Click "Advance to Next Month" to simulate July 2026. Watch actuals generate, variances calculate, and (with API key) the agent analyze results.
+4. **Close** — Click "Advance to Next Month" to simulate the next month. Watch actuals generate, variances calculate, and (with API key) all three agents run: detection, attribution, and proposals. A banner shows how many new proposals were created.
+5. **Proposals** — Review pending forecast update proposals. Each card shows the cost center, dollar impact, rationale, and attribution detail. Accept, reject, or modify the delta before accepting. Accepted proposals create a new forecast version reflected on the Dashboard and Forecast pages.
 
 ## Architecture
 
@@ -101,7 +106,7 @@ fpa-copilot/
 │   └── scripts/          # CLI scripts (seed, simulate, setup)
 ├── frontend/
 │   └── src/
-│       ├── pages/        # Dashboard, Forecast, Variances, Close
+│       ├── pages/        # Dashboard, Forecast, Variances, Close, Proposals
 │       ├── components/   # Layout, UI components
 │       ├── lib/          # API client, utilities
 │       └── types/        # TypeScript API types
@@ -118,11 +123,12 @@ cd backend
 python -m pytest app/tests/ -v
 ```
 
-29 tests covering: model CRUD, forecast math, simulator determinism, variance decomposition, agent output parsing, API endpoints.
+48+ tests covering: model CRUD, forecast math, simulator determinism, variance decomposition, agent output parsing (detection, attribution, proposal), proposal accept/reject/modify logic, audit trail, API endpoints.
 
 ## Roadmap
 
-- **Run 2:** Variance attribution agent, forecast update proposals, approval workflow UI
+- **Run 1:** ~~Project scaffolding, data model, forecast engine, variance detection agent, UI~~ (Complete)
+- **Run 2:** ~~Variance attribution agent, forecast update proposals, approval workflow UI~~ (Complete)
 - **Run 3:** Monthly close report generation, commentary writing agent, one-click close demo
 - **Run 4:** Auth, multi-tenant, deployment to Vercel + Railway
 

@@ -43,7 +43,9 @@
 
 - **Async throughout**: FastAPI + SQLAlchemy async + asyncpg. Agent calls are I/O-bound, so async lets the server handle concurrent requests without blocking.
 
-- **Single active forecast**: The `is_active` flag on ForecastVersion ensures exactly one forecast is "current" at any time. Future runs will add the approval workflow to create new versions.
+- **Single active forecast**: The `is_active` flag on ForecastVersion ensures exactly one forecast is "current" at any time. Accepting a proposal creates a new version (linked via parent_version_id) and deactivates the old one.
+
+- **Conservative proposal generation**: The proposal agent is prompted to prefer fewer, well-justified proposals over many speculative ones. One-time events (spot bonuses, overtime) do not generate forward-looking proposals.
 
 - **Variance decomposition**: Every variance is decomposed into volume (headcount delta × forecast rate) and rate (actual headcount × rate delta). This gives FP&A analysts the "why" behind the numbers.
 
@@ -68,7 +70,18 @@ POST /close/advance-month
     → simulate_month (generate actuals, apply story variance)
     → calculate_variances (forecast vs actual decomposition)
     → VarianceDetectorAgent (AI assessment of each material variance)
+    → VarianceAttributorAgent (traces variances to specific drivers)
+    → ProposalGeneratorAgent (generates forecast update proposals)
     → Response with summary
+```
+
+### Approval Workflow (Run 2)
+```
+User reviews proposals on /proposals page
+    → Accept: clones active ForecastVersion, applies delta, new version becomes active
+    → Reject: status change, no forecast version created
+    → Modify & Accept: user adjusts delta, then accepts — modified delta applied
+    → Audit trail: ProposalDecisionAudit row for every state change
 ```
 
 ## Database Schema
@@ -83,9 +96,12 @@ cost_centers ─┬── employees ─── actuals
 - **cost_centers**: 3-level hierarchy (Division > Department > Team)
 - **employees**: Active/terminated headcount with comp details
 - **positions**: Open slots for headcount planning
-- **forecast_versions / forecast_lines**: Versioned forecast at CC × month × category
+- **forecast_versions / forecast_lines**: Versioned forecast at CC × month × category (parent_version_id + source for version chaining)
 - **actuals**: Employee-level payroll actuals
 - **variances**: Calculated variances with optional agent assessment fields
+- **attribution_records**: Structured attribution linking variances to specific drivers (Run 2)
+- **forecast_proposals**: Agent-generated forecast change proposals with status lifecycle (Run 2)
+- **proposal_decision_audits**: Append-only audit trail for proposal decisions (Run 2)
 
 ## Frontend Architecture
 
@@ -94,7 +110,7 @@ cost_centers ─┬── employees ─── actuals
 - **React Router** for client-side routing
 - **Tailwind CSS** for utility-first styling
 - **Recharts** for the actual-vs-forecast chart
-- Pages: Dashboard, Forecast, Variances, Close
+- Pages: Dashboard, Forecast, Variances, Close, Proposals
 
 ## API Contracts
 
@@ -111,3 +127,11 @@ cost_centers ─┬── employees ─── actuals
 | POST | `/api/v1/variances/{period}/analyze` | Run AI agent analysis |
 | POST | `/api/v1/close/advance-month` | Full monthly close cycle |
 | GET | `/api/v1/kpis/dashboard` | Dashboard KPIs |
+| GET | `/api/v1/forecast/versions` | List forecast versions |
+| POST | `/api/v1/attribution/{period}/run` | Run attribution agent |
+| POST | `/api/v1/proposals/{period}/generate` | Run proposal agent |
+| GET | `/api/v1/proposals` | List proposals (filterable) |
+| GET | `/api/v1/proposals/{id}` | Proposal detail |
+| POST | `/api/v1/proposals/{id}/accept` | Accept proposal |
+| POST | `/api/v1/proposals/{id}/reject` | Reject proposal |
+| POST | `/api/v1/proposals/{id}/modify-and-accept` | Modify and accept |

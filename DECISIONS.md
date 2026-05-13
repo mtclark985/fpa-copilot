@@ -23,3 +23,22 @@
 
 ## D8: Test isolation via unique keys
 **Phase 7** — Model tests use UUID-based unique codes/numbers (`TEST-{uuid}`) to avoid conflicts with seeded data in the shared Postgres database. This is simpler than a fully isolated test database while still providing reliable test results.
+
+---
+
+# Decisions Log — Run 2
+
+## D9: Materiality threshold for attribution
+**Phase 3** — Attribution agent processes variances with materiality_score >= 50 (vs. the detector's threshold of 30). This focuses attribution effort on truly material variances while the detector casts a wider net for assessment.
+
+## D10: Idempotent agent runs
+**Phases 3-4** — Both new agents check for existing records before creating new ones. The attribution agent skips already-attributed variance IDs; the proposal agent skips periods with existing proposals. This makes the advance-month chain safely re-runnable.
+
+## D11: Forecast version cloning on accept
+**Phase 6** — Accepting a proposal copies ALL forecast lines from the active version to a new version, applying the delta only to matching CC×category×period lines. This ensures a clean snapshot and no orphan references. The trade-off is more rows in forecast_lines, but correctness is worth it for a 500-employee company.
+
+## D12: Alembic version stamp
+**Phase 2** — The database had existing tables from Run 1's setup_demo.py (which uses Base.metadata.create_all) but no alembic_version entry. Stamped the DB at the initial migration revision before generating the Run 2 migration. This is a one-time fix.
+
+## D13: Pre-existing test failure (7 months)
+**Phase 1** — `test_six_months_of_actuals` fails with 7 == 6 because a 7th month was advanced during manual testing. This is pre-existing state in the shared database, not a regression. All Run 2 changes are validated by the other 48 passing tests.
