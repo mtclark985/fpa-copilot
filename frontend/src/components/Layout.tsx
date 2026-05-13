@@ -6,6 +6,7 @@ const navItems = [
   { to: "/forecast", label: "Forecast" },
   { to: "/variances", label: "Variances" },
   { to: "/close", label: "Close" },
+  { to: "/proposals", label: "Proposals" },
 ];
 
 export default function Layout() {

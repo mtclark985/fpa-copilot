@@ -73,4 +73,66 @@ export interface AdvanceMonthResponse {
   events: string;
   variances_calculated: number;
   agent_assessments: number;
+  attributions_created?: number;
+  proposals_created?: number;
+}
+
+export interface Proposal {
+  id: number;
+  created_at: string;
+  created_for_period: string;
+  status: string;
+  cost_center_id: number;
+  cost_center_name: string;
+  category: string;
+  affected_periods: string[];
+  delta_per_period: number;
+  agent_rationale: string;
+  driving_variance_ids: number[];
+  attributed_events: AttributedEvent[];
+  confidence: string;
+  decided_at: string | null;
+  decided_by: string | null;
+  decision_note: string | null;
+  modified_delta_per_period: number | null;
+  resulting_forecast_version_id: number | null;
+}
+
+export interface AttributedEvent {
+  attribution_type: string;
+  narrative: string;
+  drivers: DriverDetail[];
+}
+
+export interface DriverDetail {
+  type: string;
+  employee_id: number | null;
+  employee_name: string | null;
+  details: string;
+}
+
+export interface ProposalDetail extends Proposal {
+  driving_variances: DrivingVariance[];
+  attribution_records: AttributionRecordSummary[];
+}
+
+export interface DrivingVariance {
+  id: number;
+  cost_center_name: string;
+  category: string;
+  period: string;
+  variance_amount: number;
+  variance_pct: number;
+  materiality_score: number;
+  agent_severity: string | null;
+  agent_rationale: string | null;
+}
+
+export interface AttributionRecordSummary {
+  id: number;
+  variance_id: number;
+  attribution_type: string;
+  narrative: string;
+  structured_drivers: DriverDetail[];
+  confidence: string;
 }

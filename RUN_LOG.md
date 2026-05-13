@@ -177,3 +177,17 @@ All 9 phases completed. Final state:
 - All 48 tests pass
 - **Commit:** `feat(phase-6): proposal CRUD and decision endpoints`
 
+## Phase 7: Proposals Page (Frontend)
+**Completed:** 2026-05-13
+
+- New `/proposals` route with card-based approval UI
+- Filter chips: Pending / Accepted / Rejected / All
+- Each card shows: cost center, category, period range, delta (per month + total), confidence badge, status badge, rationale
+- Expandable "Show details" section with attribution events and affected periods
+- Accept / Reject / Modify buttons with optional note input and confirmation flow
+- Modify flow: inline numeric input prefilled with proposed delta, "Accept Modified" confirmation
+- Empty state when no proposals found
+- Added to Layout.tsx nav and App.tsx routes
+- TypeScript compiles clean, all 48 backend tests pass
+- **Commit:** `feat(phase-7): proposals page with approval workflow`
+
