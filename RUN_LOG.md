@@ -164,3 +164,16 @@ All 9 phases completed. Final state:
 - All 42 tests pass
 - **Commit:** `feat(phase-5): chain attribution and proposals into close flow`
 
+## Phase 6: Proposal Endpoints (CRUD + Decisions)
+**Completed:** 2026-05-13
+
+- `GET /api/v1/proposals` — list with filters (status, period, cost_center)
+- `GET /api/v1/proposals/{id}` — full detail with driving variances and attributions
+- `POST /api/v1/proposals/{id}/accept` — creates new ForecastVersion with delta applied
+- `POST /api/v1/proposals/{id}/reject` — status change, no forecast version
+- `POST /api/v1/proposals/{id}/modify-and-accept` — modified delta, new ForecastVersion
+- Proposal service handles forecast version cloning, delta application, audit trail
+- 6 tests covering: accept, delta application, reject, modify-and-accept, audit entries
+- All 48 tests pass
+- **Commit:** `feat(phase-6): proposal CRUD and decision endpoints`
+
