@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import actuals, close, forecast, health
+from app.api import actuals, close, forecast, health, variances
 
 
 def create_app() -> FastAPI:
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     application.include_router(forecast.router, prefix="/api/v1")
     application.include_router(actuals.router, prefix="/api/v1")
     application.include_router(close.router, prefix="/api/v1")
+    application.include_router(variances.router, prefix="/api/v1")
 
     return application
 

@@ -42,3 +42,12 @@
 - 3 math tests pass (FICA below/above wage base, single-employee forecast)
 - **Commit:** `feat(phase-4): driver-based forecast engine`
 
+## Phase 5: Monthly Simulator and Actuals Ingestion
+**Completed:** 2026-05-13
+
+- Monthly simulator with story variances (one per month), random hires/departures, payroll noise
+- 6 months pre-seeded: Jan-Jun 2026 with ~2000 actual records each
+- Actuals API, advance-month endpoint
+- 3 simulator tests pass
+- **Commit:** `feat(phase-5): monthly simulator and actuals ingestion`
+
