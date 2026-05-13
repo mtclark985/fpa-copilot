@@ -104,3 +104,15 @@ All 9 phases completed. Final state:
 - Variance Detection Agent built and tested (mocked) — runs live when ANTHROPIC_API_KEY set
 - No [WIP] commits
 
+---
+
+# Run Log — Run 2
+
+## Phase 1: Branch Setup and Working Agreements
+**Started:** 2026-05-13
+
+- Created branch `run-2-approval-workflow` from main
+- Read all Section 0 files: RUN_LOG.md, DECISIONS.md, base.py, variance_detector.py, variance_calculator.py, variances.py, Variances.tsx, api.ts
+- Confirmed understanding of Run 1 architecture and Run 2 goals
+- Verified app runs end-to-end (docker, backend, frontend)
+
