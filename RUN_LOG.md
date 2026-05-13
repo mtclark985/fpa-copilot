@@ -154,3 +154,13 @@ All 9 phases completed. Final state:
 - All 42 tests pass
 - **Commit:** `feat(phase-4): forecast update proposal agent`
 
+## Phase 5: Wire New Agents into Close Flow
+**Completed:** 2026-05-13
+
+- Updated `POST /api/v1/close/advance-month` to chain: simulate → variances → detection → attribution → proposals
+- Each agent step is wrapped in try/except for graceful degradation (no API key = skip)
+- Both new agents are idempotent (no duplicates on re-run)
+- Summary response includes `attributions_created` and `proposals_created` counts
+- All 42 tests pass
+- **Commit:** `feat(phase-5): chain attribution and proposals into close flow`
+

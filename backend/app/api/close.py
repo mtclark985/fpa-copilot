@@ -20,7 +20,11 @@ router = APIRouter()
 async def advance_month(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str | int]:
-    """Advance the simulation: generate actuals, calculate variances, run agent."""
+    """Advance the simulation: generate actuals, calculate variances, run agents.
+
+    Chain: simulate month → calculate variances → detection agent →
+    attribution agent → proposal agent.
+    """
     # Determine next period
     result = await session.execute(select(func.max(Actual.period)))
     latest = result.scalar()
@@ -50,5 +54,25 @@ async def advance_month(
     except Exception as e:
         logger.warning("Agent analysis skipped: %s", e)
         summary["agent_assessments"] = 0
+
+    # Step 4: Try attribution agent
+    try:
+        from app.agents.variance_attributor import VarianceAttributorAgent
+        attributor = VarianceAttributorAgent()
+        attr_output = await attributor.analyze_period(session, next_period)
+        summary["attributions_created"] = len(attr_output.attributions)
+    except Exception as e:
+        logger.warning("Attribution agent skipped: %s", e)
+        summary["attributions_created"] = 0
+
+    # Step 5: Try proposal agent
+    try:
+        from app.agents.proposal_generator import ProposalGeneratorAgent
+        proposer = ProposalGeneratorAgent()
+        prop_output = await proposer.generate_proposals(session, next_period)
+        summary["proposals_created"] = len(prop_output.proposals)
+    except Exception as e:
+        logger.warning("Proposal agent skipped: %s", e)
+        summary["proposals_created"] = 0
 
     return summary
