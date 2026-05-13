@@ -129,3 +129,15 @@ All 9 phases completed. Final state:
 - All 32 tests pass (pre-existing 7-month test failure unchanged)
 - **Commit:** `feat(phase-2): data model for proposals and attribution`
 
+## Phase 3: Variance Attribution Agent
+**Completed:** 2026-05-13
+
+- Built `app/agents/variance_attributor.py` following variance_detector.py pattern
+- Agent takes material variances (materiality >= 50) and employee/position context
+- Produces AttributionRecord rows with attribution_type, narrative, structured_drivers, confidence
+- Idempotent: skips variances already attributed
+- Added `POST /api/v1/attribution/{period}/run` endpoint
+- 5 tests using mocked Anthropic responses all pass
+- All 37 tests pass (pre-existing 7-month test failure unchanged)
+- **Commit:** `feat(phase-3): variance attribution agent`
+
