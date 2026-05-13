@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
+    from app.models.attribution import AttributionRecord
     from app.models.cost_center import CostCenter
     from app.models.forecast import ForecastVersion
 
@@ -49,4 +50,7 @@ class Variance(Base):
     )
     cost_center: Mapped["CostCenter"] = relationship(
         back_populates="variances", lazy="selectin"
+    )
+    attributions: Mapped[list["AttributionRecord"]] = relationship(
+        back_populates="variance", lazy="selectin"
     )

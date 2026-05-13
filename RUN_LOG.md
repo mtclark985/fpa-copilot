@@ -115,4 +115,17 @@ All 9 phases completed. Final state:
 - Read all Section 0 files: RUN_LOG.md, DECISIONS.md, base.py, variance_detector.py, variance_calculator.py, variances.py, Variances.tsx, api.ts
 - Confirmed understanding of Run 1 architecture and Run 2 goals
 - Verified app runs end-to-end (docker, backend, frontend)
+- **Commit:** `chore(run-2): branch setup`
+
+## Phase 2: Data Model Migration
+**Completed:** 2026-05-13
+
+- Added SQLAlchemy models: `AttributionRecord`, `ForecastProposal`, `ProposalDecisionAudit`
+- Added `parent_version_id` (FK) and `source` columns to `ForecastVersion`
+- Added `attributions` relationship to `Variance` model
+- Generated and applied Alembic migration (8c265de6bff4)
+- Stamped existing DB at initial migration since alembic_version table was missing
+- 4 new model tests: attribution record, forecast proposal, proposal decision audit, forecast version parent/source
+- All 32 tests pass (pre-existing 7-month test failure unchanged)
+- **Commit:** `feat(phase-2): data model for proposals and attribution`
 

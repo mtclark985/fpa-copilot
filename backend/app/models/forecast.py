@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,7 +26,16 @@ class ForecastVersion(Base):
         default=datetime.datetime.utcnow
     )
     is_active: Mapped[bool] = mapped_column(default=True)
+    parent_version_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("forecast_versions.id"), nullable=True
+    )
+    source: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, default="initial_plan"
+    )
 
+    parent_version: Mapped[Optional["ForecastVersion"]] = relationship(
+        "ForecastVersion", remote_side="ForecastVersion.id", lazy="selectin"
+    )
     lines: Mapped[list["ForecastLine"]] = relationship(
         back_populates="version", lazy="selectin"
     )
