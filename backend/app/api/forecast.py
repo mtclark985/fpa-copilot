@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models.cost_center import CostCenter
 from app.models.forecast import ForecastLine, ForecastVersion
-from app.schemas.forecast import ForecastLineSchema
+from app.schemas.forecast import ForecastLineSchema, ForecastVersionSchema
 
 router = APIRouter()
 
@@ -20,16 +20,20 @@ async def get_forecast(
     period_start: Optional[str] = Query(None, description="Start period YYYY-MM"),
     period_end: Optional[str] = Query(None, description="End period YYYY-MM"),
     cost_center_id: Optional[int] = Query(None),
+    version_id: Optional[int] = Query(None, description="Specific version ID; defaults to active"),
 ) -> list[ForecastLineSchema]:
-    """Get active forecast lines with optional filters."""
-    # Find active version
-    version_result = await session.execute(
-        select(ForecastVersion)
-        .where(ForecastVersion.is_active.is_(True))
-        .order_by(ForecastVersion.id.desc())
-        .limit(1)
-    )
-    version = version_result.scalar_one_or_none()
+    """Get forecast lines with optional filters."""
+    if version_id:
+        version = await session.get(ForecastVersion, version_id)
+    else:
+        version_result = await session.execute(
+            select(ForecastVersion)
+            .where(ForecastVersion.is_active.is_(True))
+            .order_by(ForecastVersion.id.desc())
+            .limit(1)
+        )
+        version = version_result.scalar_one_or_none()
+
     if version is None:
         return []
 
@@ -59,4 +63,26 @@ async def get_forecast(
             headcount_eop=line.headcount_eop,
         )
         for line, cc_name in result.all()
+    ]
+
+
+@router.get("/forecast/versions", response_model=list[ForecastVersionSchema])
+async def list_forecast_versions(
+    session: AsyncSession = Depends(get_session),
+) -> list[ForecastVersionSchema]:
+    """List all forecast versions, newest first."""
+    result = await session.execute(
+        select(ForecastVersion).order_by(ForecastVersion.id.desc())
+    )
+    versions = result.scalars().all()
+    return [
+        ForecastVersionSchema(
+            id=v.id,
+            name=v.name,
+            is_active=v.is_active,
+            source=getattr(v, "source", None) or "initial_plan",
+            created_at=v.created_at.isoformat() if v.created_at else "",
+            parent_version_id=v.parent_version_id,
+        )
+        for v in versions
     ]

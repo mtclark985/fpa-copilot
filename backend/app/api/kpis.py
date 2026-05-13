@@ -121,6 +121,25 @@ async def get_dashboard_kpis(
         for v in agent_result.scalars().all()
     ]
 
+    # Active forecast version info
+    active_forecast_info = None
+    if fv:
+        active_forecast_info = {
+            "id": fv.id,
+            "name": fv.name,
+            "source": getattr(fv, "source", None) or "initial_plan",
+            "created_at": fv.created_at.isoformat() if fv.created_at else None,
+        }
+
+    # Pending proposals count
+    from app.models.proposal import ForecastProposal
+    pending_result = await session.execute(
+        select(func.count()).select_from(ForecastProposal).where(
+            ForecastProposal.status == "pending"
+        )
+    )
+    pending_proposals = pending_result.scalar() or 0
+
     return {
         "current_month": current_month,
         "headcount_eop": headcount_eop,
@@ -129,4 +148,6 @@ async def get_dashboard_kpis(
         "fy_forecast": round(fy_forecast, 2),
         "monthly_data": monthly_data,
         "recent_assessments": recent_assessments,
+        "active_forecast": active_forecast_info,
+        "pending_proposals": pending_proposals,
     }

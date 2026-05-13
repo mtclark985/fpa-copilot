@@ -97,15 +97,47 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Forecast FY Landing */}
+      {/* Forecast FY Landing + Active Forecast Info */}
       <div className="rounded-lg border border-border bg-card p-5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Forecasted FY Landing
-        </p>
-        <p className="text-2xl font-semibold mt-1">
-          {formatCurrency(data.fy_forecast)}
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Forecasted FY Landing
+            </p>
+            <p className="text-2xl font-semibold mt-1">
+              {formatCurrency(data.fy_forecast)}
+            </p>
+          </div>
+          {data.active_forecast && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">
+                Active Forecast: {data.active_forecast.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Source: {data.active_forecast.source?.replace(/_/g, " ")}
+                {data.active_forecast.created_at && (
+                  <> | Updated {new Date(data.active_forecast.created_at).toLocaleDateString()}</>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Pending Proposals Banner */}
+      {data.pending_proposals > 0 && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 flex items-center justify-between">
+          <p className="text-sm text-yellow-800">
+            {data.pending_proposals} proposal{data.pending_proposals > 1 ? "s" : ""} awaiting your review
+          </p>
+          <a
+            href="/proposals"
+            className="px-3 py-1.5 text-sm rounded-md bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
+          >
+            Review Proposals
+          </a>
+        </div>
+      )}
 
       {/* Chart: Actual vs Forecast */}
       <div className="rounded-lg border border-border bg-card p-5">

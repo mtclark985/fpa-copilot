@@ -25,7 +25,7 @@ export default function Close() {
         <h2 className="text-2xl font-semibold">Monthly Close</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Advance the simulation by one month. This generates payroll actuals,
-          calculates variances, and runs the variance detection agent.
+          calculates variances, and runs the detection, attribution, and proposal agents.
         </p>
       </div>
 
@@ -93,7 +93,46 @@ export default function Close() {
                   </p>
                 </div>
               </div>
+              {(result.attributions_created !== undefined || result.proposals_created !== undefined) && (
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  {result.attributions_created !== undefined && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">
+                        Attributions
+                      </p>
+                      <p className="font-semibold">
+                        {result.attributions_created}
+                      </p>
+                    </div>
+                  )}
+                  {result.proposals_created !== undefined && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">
+                        New Proposals
+                      </p>
+                      <p className="font-semibold">
+                        {result.proposals_created}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Proposals banner */}
+            {result.proposals_created !== undefined && result.proposals_created > 0 && (
+              <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 flex items-center justify-between">
+                <p className="text-sm text-yellow-800">
+                  {result.proposals_created} new proposal{result.proposals_created > 1 ? "s" : ""} awaiting your review
+                </p>
+                <a
+                  href="/proposals"
+                  className="px-3 py-1.5 text-sm rounded-md bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
+                >
+                  Review Proposals
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

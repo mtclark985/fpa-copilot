@@ -191,3 +191,16 @@ All 9 phases completed. Final state:
 - TypeScript compiles clean, all 48 backend tests pass
 - **Commit:** `feat(phase-7): proposals page with approval workflow`
 
+## Phase 8: Dashboard and Forecast Page Integration
+**Completed:** 2026-05-13
+
+- Dashboard: shows active forecast name, source, and updated date next to FY Landing KPI
+- Dashboard: pending proposals banner with count and link to Proposals page
+- Forecast: version selector dropdown to view any historical forecast version
+- Forecast: added `GET /api/v1/forecast/versions` endpoint, version_id query param on forecast endpoint
+- Close: shows attribution and proposal counts after advancing; proposals banner with link
+- Updated ForecastVersionSchema with source, created_at, parent_version_id fields
+- KPIs endpoint now returns active_forecast info and pending_proposals count
+- TypeScript compiles clean, all 48 backend tests pass
+- **Commit:** `feat(phase-8): dashboard and forecast integration with versioned forecasts`
+

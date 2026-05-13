@@ -1,5 +1,7 @@
 """Pydantic schemas for forecast API responses."""
 
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -24,5 +26,8 @@ class ForecastVersionSchema(BaseModel):
     id: int
     name: str
     is_active: bool
+    source: Optional[str] = None
+    created_at: Optional[str] = None
+    parent_version_id: Optional[int] = None
 
     model_config = {"from_attributes": True}

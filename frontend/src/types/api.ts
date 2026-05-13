@@ -26,6 +26,22 @@ export interface DashboardKPIs {
   fy_forecast: number;
   monthly_data: MonthlyDataPoint[];
   recent_assessments: AgentAssessment[];
+  active_forecast: {
+    id: number;
+    name: string;
+    source: string;
+    created_at: string | null;
+  } | null;
+  pending_proposals: number;
+}
+
+export interface ForecastVersionInfo {
+  id: number;
+  name: string;
+  is_active: boolean;
+  source: string | null;
+  created_at: string | null;
+  parent_version_id: number | null;
 }
 
 export interface ForecastLine {

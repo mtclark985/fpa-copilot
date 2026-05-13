@@ -2,22 +2,29 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import type { ForecastLine, CostCenter } from "@/types/api";
+import type { ForecastLine, ForecastVersionInfo, CostCenter } from "@/types/api";
 
 export default function Forecast() {
   const [selectedCC, setSelectedCC] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedVersion, setSelectedVersion] = useState<string>("");
 
   const { data: costCenters } = useQuery({
     queryKey: ["cost-centers"],
     queryFn: () => apiFetch<CostCenter[]>("/cost-centers"),
   });
 
+  const { data: versions } = useQuery({
+    queryKey: ["forecast-versions"],
+    queryFn: () => apiFetch<ForecastVersionInfo[]>("/forecast/versions"),
+  });
+
   const { data: forecastData, isLoading } = useQuery({
-    queryKey: ["forecast", selectedCC],
+    queryKey: ["forecast", selectedCC, selectedVersion],
     queryFn: () => {
       const params = new URLSearchParams();
       if (selectedCC) params.set("cost_center_id", selectedCC);
+      if (selectedVersion) params.set("version_id", selectedVersion);
       const qs = params.toString();
       return apiFetch<ForecastLine[]>(`/forecast${qs ? `?${qs}` : ""}`);
     },
@@ -85,7 +92,9 @@ export default function Forecast() {
         <div>
           <h2 className="text-2xl font-semibold">Forecast</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Active forecast: Initial Plan FY26
+            {selectedVersion
+              ? `Viewing version: ${versions?.find((v) => String(v.id) === selectedVersion)?.name || `v${selectedVersion}`}`
+              : `Active forecast: ${versions?.find((v) => v.is_active)?.name || "Initial Plan FY26"}`}
           </p>
         </div>
         <button
@@ -97,7 +106,19 @@ export default function Forecast() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
+        <select
+          value={selectedVersion}
+          onChange={(e) => setSelectedVersion(e.target.value)}
+          className="px-3 py-1.5 text-sm rounded-md border border-border bg-card"
+        >
+          <option value="">Active Version</option>
+          {versions?.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name} {v.is_active ? "(active)" : ""} — {v.source?.replace(/_/g, " ") || "initial plan"}
+            </option>
+          ))}
+        </select>
         <select
           value={selectedCC}
           onChange={(e) => setSelectedCC(e.target.value)}
