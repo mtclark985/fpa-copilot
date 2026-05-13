@@ -12,3 +12,13 @@
 - Note: System has Python 3.14.4 — added setuptools build-backend to pyproject.toml for compatibility
 - **Commit:** `feat(phase-1): project scaffolding`
 
+## Phase 2: Data Model and Migrations
+**Completed:** 2026-05-13
+
+- Defined 7 ORM models: CostCenter, Employee, Position, ForecastVersion, ForecastLine, Actual, Variance
+- All models have type hints, relationships, FK indexes
+- Alembic auto-generated migration applied cleanly
+- 7 tests pass (6 model CRUD tests + 1 health endpoint)
+- Used `datetime.datetime.utcnow` for default timestamps (naive) to avoid asyncpg timezone mismatch
+- **Commit:** `feat(phase-2): data model and migrations`
+
