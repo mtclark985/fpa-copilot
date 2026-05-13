@@ -32,7 +32,21 @@ Guidelines:
 - Bonus actuals that significantly exceed accruals suggest off-cycle bonuses.
 - Consider patterns: if a cost center consistently overruns, that's a systemic issue worth escalating.
 
-Respond with ONLY a JSON object matching the VarianceAssessment schema. No other text."""
+Respond with ONLY a JSON object with this exact structure:
+{
+  "period": "YYYY-MM (the period being analyzed)",
+  "summary": "2-3 sentence executive summary of the period's variance picture: total magnitude, key themes, biggest concern.",
+  "assessments": [
+    {
+      "variance_id": <int>,
+      "severity": "low | medium | high",
+      "unexpectedness": "expected | somewhat_unexpected | highly_unexpected",
+      "rationale": "concise one-sentence explanation",
+      "suggested_action": "monitor | investigate | escalate"
+    }
+  ]
+}
+No other text, no markdown fences."""
 
 
 class VarianceItemAssessment(BaseModel):
@@ -150,6 +164,6 @@ class VarianceDetectorAgent(Agent):
                 )
 
         lines.append(f"\nAnalyze all {len(current)} variances for period {period}.")
-        lines.append("Return a JSON VarianceAssessment with an assessment for each variance_id listed above.")
+        lines.append(f"Return a JSON object with period='{period}', a 2-3 sentence summary, and an assessment for each variance_id listed above.")
 
         return "\n".join(lines)

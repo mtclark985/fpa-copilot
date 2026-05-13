@@ -41,3 +41,6 @@ htmlcov/
 
 # Docker
 docker-compose.override.yml
+
+backend/diagnose_agent.py
+backend/analyze_all_months.py

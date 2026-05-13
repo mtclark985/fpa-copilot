@@ -25,7 +25,7 @@ class Agent:
     and output model. The base class handles the API call mechanics.
     """
 
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "claude-sonnet-4-6"
     max_tokens: int = 4096
 
     def __init__(self) -> None:
