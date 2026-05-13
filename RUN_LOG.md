@@ -60,3 +60,15 @@
 - 3 tests: existence, decomposition integrity, score range
 - **Commit:** `feat(phase-6): variance calculation with volume/rate decomposition`
 
+## Phase 7: Variance Detection Agent
+**Completed:** 2026-05-13
+
+- Agent base class with Anthropic API wrapping, Pydantic output parsing, logging
+- VarianceDetectorAgent: reviews material variances with prior-month context
+- Output: severity, unexpectedness, rationale, suggested_action per variance
+- Advance-month endpoint now chains: simulate -> variance calc -> agent analysis
+- ANTHROPIC_API_KEY not set — agent tests use mocked responses (5 tests pass)
+- Agent will run live against seeded data once API key is provided
+- All 29 tests passing
+- **Commit:** `feat(phase-7): variance detection agent`
+

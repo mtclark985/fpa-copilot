@@ -1,6 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Layout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
+import Forecast from "@/pages/Forecast";
+import Variances from "@/pages/Variances";
+import Close from "@/pages/Close";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,7 +20,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/forecast" element={<Forecast />} />
+            <Route path="/variances" element={<Variances />} />
+            <Route path="/close" element={<Close />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
