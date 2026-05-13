@@ -33,3 +33,12 @@
 - 5 smoke tests all pass
 - **Commit:** `feat(phase-3): demo company generator`
 
+## Phase 4: Forecast Engine
+**Completed:** 2026-05-13
+
+- Built driver-based forecast: salary roll-forward, merit (April 4%), hires, attrition (12%/yr), bonus, benefits (18%), FICA/Medicare
+- Year 1 breakdown: $73M salary + $10M bonus + $13M benefits + $5M taxes = $101M all-in
+- GET /api/v1/forecast endpoint with period/cost_center filters
+- 3 math tests pass (FICA below/above wage base, single-employee forecast)
+- **Commit:** `feat(phase-4): driver-based forecast engine`
+
