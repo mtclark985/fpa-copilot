@@ -72,3 +72,35 @@
 - All 29 tests passing
 - **Commit:** `feat(phase-7): variance detection agent`
 
+## Phase 8: Frontend UI Shell
+**Completed:** 2026-05-13
+
+- Dashboard: KPI cards (month, headcount, YTD actuals/variance, FY landing), actual-vs-forecast chart, agent activity feed
+- Forecast: cost center x month table with CC/category filters, CSV export
+- Variances: list sorted by materiality, drill-down panel with volume/rate decomposition and agent assessment
+- Close: advance-month button triggers simulate -> variance calc -> agent chain
+- Navigation shell with TanStack Query, clean routing
+- Backend: added /kpis/dashboard, /employees, /cost-centers endpoints
+- All 29 tests pass, TypeScript compiles clean
+- **Commit:** `feat(phase-8): frontend UI shell`
+
+## Phase 9: Polish and Documentation
+**Completed:** 2026-05-13
+
+- README.md: project description, tech stack, quick start, demo script, architecture overview, roadmap
+- docs/architecture.md: system diagram, layer descriptions, data flow, API contracts
+- DECISIONS.md: 8 non-trivial decisions documented with rationale
+- scripts/setup_demo.py: one-shot setup (seed + forecast + 6 months + variances)
+- Verified: clean setup_demo.py run produces working data, all 29 tests pass, frontend compiles clean
+- **Commit:** `docs(phase-9): readme and polish`
+
+## Run 1 Summary
+
+All 9 phases completed. Final state:
+- 29 backend tests passing
+- Frontend TypeScript compiles clean (0 errors)
+- `docker compose up` + `python scripts/setup_demo.py` + `npm run dev` = working app
+- Dashboard, Forecast, Variances, Close pages render with real data
+- Variance Detection Agent built and tested (mocked) — runs live when ANTHROPIC_API_KEY set
+- No [WIP] commits
+
