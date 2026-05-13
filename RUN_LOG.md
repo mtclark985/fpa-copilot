@@ -22,3 +22,14 @@
 - Used `datetime.datetime.utcnow` for default timestamps (naive) to avoid asyncpg timezone mismatch
 - **Commit:** `feat(phase-2): data model and migrations`
 
+## Phase 3: Demo Company Generator
+**Completed:** 2026-05-13
+
+- Built `seed/company_generator.py` with 3-level org hierarchy (4 divisions → 11 depts → 16 teams = 31 CCs)
+- 500 employees with realistic comp bands, L3-L7 levels, 3 locations (Charlotte/NYC/Remote) with COL adjustments
+- ~28 open positions across teams
+- Deterministic via `random.seed(42)` + `Faker.seed(42)`
+- CLI `scripts/seed_company.py` wipes and reseeds
+- 5 smoke tests all pass
+- **Commit:** `feat(phase-3): demo company generator`
+

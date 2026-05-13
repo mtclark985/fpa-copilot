@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health
+from app.api import forecast, health
 
 
 def create_app() -> FastAPI:
@@ -19,6 +19,7 @@ def create_app() -> FastAPI:
     )
 
     application.include_router(health.router, prefix="/api/v1")
+    application.include_router(forecast.router, prefix="/api/v1")
 
     return application
 
