@@ -1,6 +1,10 @@
-"""Test that ORM models can be created, persisted, and queried."""
+"""Test that ORM models can be created, persisted, and queried.
+
+Uses unique codes/numbers with TEST- prefix to avoid conflicts with seed data.
+"""
 
 import datetime
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,26 +20,30 @@ from app.models import (
 )
 
 
+def _uid() -> str:
+    return uuid.uuid4().hex[:8]
+
+
 async def test_cost_center_crud(db_session: AsyncSession) -> None:
     """Cost center can be created and queried."""
-    cc = CostCenter(code="ENG-001", name="Platform Engineering", vp_owner="Jane Smith")
+    code = f"TEST-{_uid()}"
+    cc = CostCenter(code=code, name="Test CC", vp_owner="Jane Smith")
     db_session.add(cc)
     await db_session.flush()
 
-    result = await db_session.execute(select(CostCenter).where(CostCenter.code == "ENG-001"))
+    result = await db_session.execute(select(CostCenter).where(CostCenter.code == code))
     fetched = result.scalar_one()
-    assert fetched.name == "Platform Engineering"
-    assert fetched.vp_owner == "Jane Smith"
+    assert fetched.name == "Test CC"
 
 
 async def test_employee_with_cost_center(db_session: AsyncSession) -> None:
     """Employee links to its cost center via FK."""
-    cc = CostCenter(code="FIN-001", name="Finance", vp_owner="Bob Jones")
+    cc = CostCenter(code=f"TEST-{_uid()}", name="Finance", vp_owner="Bob Jones")
     db_session.add(cc)
     await db_session.flush()
 
     emp = Employee(
-        employee_number="E0001",
+        employee_number=f"T{_uid()}",
         name="Alice Analyst",
         hire_date=datetime.date(2023, 6, 15),
         cost_center_id=cc.id,
@@ -55,7 +63,7 @@ async def test_employee_with_cost_center(db_session: AsyncSession) -> None:
 
 async def test_position_model(db_session: AsyncSession) -> None:
     """Position can be created with open status."""
-    cc = CostCenter(code="MKT-001", name="Marketing", vp_owner="Carol Lee")
+    cc = CostCenter(code=f"TEST-{_uid()}", name="Marketing", vp_owner="Carol Lee")
     db_session.add(cc)
     await db_session.flush()
 
@@ -68,25 +76,26 @@ async def test_position_model(db_session: AsyncSession) -> None:
     db_session.add(pos)
     await db_session.flush()
 
-    result = await db_session.execute(select(Position).where(Position.status == "open"))
+    result = await db_session.execute(select(Position).where(Position.id == pos.id))
     fetched = result.scalar_one()
     assert fetched.job_level == "L5"
+    assert fetched.status == "open"
 
 
 async def test_forecast_version_and_lines(db_session: AsyncSession) -> None:
     """Forecast version with lines can be created and queried."""
-    cc = CostCenter(code="HR-001", name="HR", vp_owner="Dan White")
+    cc = CostCenter(code=f"TEST-{_uid()}", name="HR", vp_owner="Dan White")
     db_session.add(cc)
     await db_session.flush()
 
-    fv = ForecastVersion(name="Initial Plan FY26", is_active=True)
+    fv = ForecastVersion(name=f"Test Plan {_uid()}", is_active=False)
     db_session.add(fv)
     await db_session.flush()
 
     line = ForecastLine(
         version_id=fv.id,
         cost_center_id=cc.id,
-        period="2026-01",
+        period="2099-01",
         category="salary",
         amount=500000.00,
         headcount_eop=50,
@@ -98,18 +107,18 @@ async def test_forecast_version_and_lines(db_session: AsyncSession) -> None:
         select(ForecastLine).where(ForecastLine.version_id == fv.id)
     )
     fetched = result.scalar_one()
-    assert fetched.period == "2026-01"
+    assert fetched.period == "2099-01"
     assert float(fetched.amount) == 500000.00
 
 
 async def test_actual_model(db_session: AsyncSession) -> None:
     """Actual expense can be linked to an employee."""
-    cc = CostCenter(code="OPS-001", name="Operations", vp_owner="Eve Black")
+    cc = CostCenter(code=f"TEST-{_uid()}", name="Operations", vp_owner="Eve Black")
     db_session.add(cc)
     await db_session.flush()
 
     emp = Employee(
-        employee_number="E0099",
+        employee_number=f"T{_uid()}",
         name="Test Worker",
         hire_date=datetime.date(2024, 1, 1),
         cost_center_id=cc.id,
@@ -123,7 +132,7 @@ async def test_actual_model(db_session: AsyncSession) -> None:
 
     actual = Actual(
         employee_id=emp.id,
-        period="2026-01",
+        period="2099-01",
         category="salary",
         amount=6250.00,
     )
@@ -137,18 +146,18 @@ async def test_actual_model(db_session: AsyncSession) -> None:
 
 async def test_variance_model(db_session: AsyncSession) -> None:
     """Variance record stores both calculated and agent fields."""
-    cc = CostCenter(code="SLS-001", name="Sales", vp_owner="Frank Green")
+    cc = CostCenter(code=f"TEST-{_uid()}", name="Sales", vp_owner="Frank Green")
     db_session.add(cc)
     await db_session.flush()
 
-    fv = ForecastVersion(name="Test Plan", is_active=False)
+    fv = ForecastVersion(name=f"Test Plan {_uid()}", is_active=False)
     db_session.add(fv)
     await db_session.flush()
 
     var = Variance(
         forecast_version_id=fv.id,
         cost_center_id=cc.id,
-        period="2026-01",
+        period="2099-01",
         category="salary",
         forecast_amount=100000.00,
         actual_amount=105000.00,

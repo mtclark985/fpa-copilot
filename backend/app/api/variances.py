@@ -10,6 +10,7 @@ from app.db import get_session
 from app.models.cost_center import CostCenter
 from app.models.variance import Variance
 from app.schemas.variance import VarianceSchema
+from app.agents.variance_detector import VarianceDetectorAgent
 from app.services.variance_calculator import calculate_variances
 
 router = APIRouter()
@@ -104,3 +105,18 @@ async def trigger_variance_calculation(
     """Calculate variances for a specific period."""
     variances = await calculate_variances(session, period)
     return {"period": period, "variances_calculated": len(variances)}
+
+
+@router.post("/variances/{period}/analyze")
+async def trigger_variance_analysis(
+    period: str,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str | int]:
+    """Run the variance detection agent for a period."""
+    agent = VarianceDetectorAgent()
+    assessment = await agent.analyze_period(session, period)
+    return {
+        "period": period,
+        "summary": assessment.summary,
+        "assessments_count": len(assessment.assessments),
+    }

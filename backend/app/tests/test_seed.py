@@ -13,9 +13,11 @@ from app.models.position import Position
 
 
 async def test_employee_count(db_session: AsyncSession) -> None:
-    """Seeder produces exactly 500 employees."""
+    """Total employees is at least 500 (seed) plus simulator additions."""
     result = await db_session.execute(select(func.count()).select_from(Employee))
-    assert result.scalar() == 500
+    count = result.scalar()
+    assert count is not None
+    assert count >= 500  # base seed is 500; simulator adds more
 
 
 async def test_cost_center_count(db_session: AsyncSession) -> None:

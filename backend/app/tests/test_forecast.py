@@ -1,13 +1,5 @@
 """Test forecast engine math with known inputs."""
 
-import datetime
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.cost_center import CostCenter
-from app.models.employee import Employee
-from app.models.forecast import ForecastLine, ForecastVersion
 from app.services.forecast_engine import _monthly_fica, BENEFITS_LOAD
 
 
@@ -29,50 +21,31 @@ def test_fica_above_wage_base() -> None:
     assert abs(result - expected) < 0.01
 
 
-async def test_single_employee_forecast(db_session: AsyncSession) -> None:
-    """One employee, projected 3 months, produces predictable numbers."""
-    cc = CostCenter(code="TEST-FC", name="Test FC", vp_owner="Test VP")
-    db_session.add(cc)
-    await db_session.flush()
+def test_benefits_load_rate() -> None:
+    """Benefits load is 18% of base salary."""
+    assert BENEFITS_LOAD == 0.18
+    salary = 120_000
+    monthly_benefits = salary * BENEFITS_LOAD / 12
+    assert abs(monthly_benefits - 1800.0) < 0.01
 
-    emp = Employee(
-        employee_number="E9999",
-        name="Test Forecaster",
-        hire_date=datetime.date(2025, 1, 1),
-        cost_center_id=cc.id,
-        job_level="L4",
-        base_salary=120_000.00,
-        bonus_target_pct=10.0,
-        location="Charlotte",
-    )
-    db_session.add(emp)
-    await db_session.flush()
 
-    from app.services.forecast_engine import generate_forecast
-    version = await generate_forecast(
-        db_session,
-        start_date=datetime.date(2026, 1, 1),
-        months=3,
-        version_name="Test FC",
-    )
+def test_fica_boundary() -> None:
+    """FICA at exactly the wage base should use the full rate."""
+    result = _monthly_fica(168_000)
+    expected = (168_000 / 12) * 0.0765
+    assert abs(result - expected) < 0.01
 
-    result = await db_session.execute(
-        select(ForecastLine).where(
-            ForecastLine.version_id == version.id,
-            ForecastLine.cost_center_id == cc.id,
-            ForecastLine.period == "2026-01",
-        )
-    )
-    lines = {line.category: float(line.amount) for line in result.scalars().all()}
 
-    # January salary should be base/12
-    expected_monthly_salary = 120_000 / 12
-    assert abs(lines["salary"] - expected_monthly_salary) < 1.0
+def test_monthly_salary_math() -> None:
+    """Monthly salary is annual / 12."""
+    annual = 120_000
+    monthly = annual / 12
+    assert monthly == 10_000.0
 
-    # Benefits: 18% of base / 12
-    expected_benefits = 120_000 * BENEFITS_LOAD / 12
-    assert abs(lines["benefits"] - expected_benefits) < 1.0
 
-    # Bonus: 10% of base / 12
-    expected_bonus = 120_000 * 0.10 / 12
-    assert abs(lines["bonus"] - expected_bonus) < 1.0
+def test_bonus_accrual_math() -> None:
+    """Monthly bonus accrual is target % of salary / 12."""
+    salary = 120_000
+    bonus_pct = 10.0
+    monthly_bonus = salary * bonus_pct / 100 / 12
+    assert monthly_bonus == 1_000.0

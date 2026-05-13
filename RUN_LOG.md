@@ -51,3 +51,12 @@
 - 3 simulator tests pass
 - **Commit:** `feat(phase-5): monthly simulator and actuals ingestion`
 
+## Phase 6: Variance Calculation
+**Completed:** 2026-05-13
+
+- Variance calculator with volume/rate decomposition and materiality scoring (0-100)
+- Calculated 76-100 variances per month across 6 seeded months
+- API: GET /variances (with filters), GET /variances/{id}, POST /variances/{period}/calculate
+- 3 tests: existence, decomposition integrity, score range
+- **Commit:** `feat(phase-6): variance calculation with volume/rate decomposition`
+
