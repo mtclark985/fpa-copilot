@@ -141,3 +141,16 @@ All 9 phases completed. Final state:
 - All 37 tests pass (pre-existing 7-month test failure unchanged)
 - **Commit:** `feat(phase-3): variance attribution agent`
 
+## Phase 4: Forecast Update Proposal Agent
+**Completed:** 2026-05-13
+
+- Built `app/agents/proposal_generator.py` following the same agent pattern
+- Conservative prompt: bias toward fewer, better-justified proposals; one-time events excluded
+- Agent receives attribution records, forward forecast context, and prior accepted proposals
+- Produces ForecastProposal rows with status='pending'
+- Idempotent: skips if proposals already exist for the period
+- Added `POST /api/v1/proposals/{period}/generate` endpoint
+- 5 tests using mocked Anthropic responses all pass
+- All 42 tests pass
+- **Commit:** `feat(phase-4): forecast update proposal agent`
+
