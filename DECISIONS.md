@@ -42,3 +42,16 @@
 
 ## D13: Pre-existing test failure (7 months)
 **Phase 1** — `test_six_months_of_actuals` fails with 7 == 6 because a 7th month was advanced during manual testing. This is pre-existing state in the shared database, not a regression. All Run 2 changes are validated by the other 48 passing tests.
+
+---
+
+# Decisions Log — Run 3
+
+## D14: Test isolation via separate Postgres database
+**Phase 2** — Tests now run against `fpa_copilot_test` (separate Postgres database), not the dev database. The conftest.py session-scoped fixture auto-creates the test DB if it doesn't exist, drops and recreates all tables, then seeds data (company generator + forecast engine + 6 months of simulator + variance calculation). Each test gets a fresh engine/session to avoid asyncpg "operation in progress" conflicts. This fixes the `test_six_months_of_actuals` failure since the test DB has exactly 6 months of controlled data.
+
+## D15: Agent retry with AgentOutputError
+**Phase 2** — The agent base class now retries once with doubled `max_tokens` when JSON parsing fails. This handles the most common failure mode (truncated JSON output). If both attempts fail, an `AgentOutputError` is raised with the raw response attached for debugging. The `_make_api_call` method was extracted for reuse between first attempt and retry.
+
+## D16: Real-API agent retry test skipped
+**Phase 2** — The spec requests a real-API integration test for agent retry. Skipped because `ANTHROPIC_API_KEY` is not set. The retry behavior is covered by 4 mocked tests. When the API key is available, a live test can be added.

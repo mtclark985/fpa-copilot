@@ -240,3 +240,18 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - Note: Active forecast version (v125) has only 3 lines (affected periods from proposal acceptance). Original v1 has all 18 months × 31 CCs = 1152 lines.
 - **Commit:** `chore(run-3): branch setup`
 
+## Phase 2: Technical Debt — Failing Test, Test Isolation, Defensive Parsing
+**Completed:** 2026-05-13
+
+- Test isolation: tests now run against `fpa_copilot_test` database, auto-created by conftest.py
+- Session-scoped fixture seeds company data, forecast, 6 months of simulator + variances
+- Each test gets fresh engine/session to avoid asyncpg connection conflicts
+- Fixed `test_six_months_of_actuals`: passes because test DB has exactly 6 months of controlled data
+- Agent base class (`base.py`): added retry logic — retries once with doubled `max_tokens` on JSON parse failure
+- Added `AgentOutputError` exception type with raw response attached
+- Extracted `_make_api_call` and `_extract_json` methods for reuse
+- 4 new agent retry tests (mocked): first-fail-then-succeed, both-fail, no-retry-needed, truncated-JSON
+- Real-API integration test skipped (ANTHROPIC_API_KEY not set)
+- All 53 tests passing against isolated test database
+- **Commit:** `fix(phase-2): test isolation, agent retry, address failing test`
+
