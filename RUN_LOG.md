@@ -255,3 +255,17 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - All 53 tests passing against isolated test database
 - **Commit:** `fix(phase-2): test isolation, agent retry, address failing test`
 
+## Phase 3: Forecast Visibility Extension
+**Completed:** 2026-05-13
+
+- API already returns all 18 months — no backend changes needed
+- Added forecast projection chart (LineChart with salary/bonus/benefits/taxes/total lines)
+- Added period range selector: Next 3, Next 6, Next 12, Full 18 months (default: Full 18)
+- Sticky cost-center column with `z-10` z-index for proper layering during horizontal scroll
+- Table cells now have `whitespace-nowrap` to prevent wrapping in narrow columns
+- Chart X-axis labels rotated 30° to fit 18 month labels
+- Dashboard FY Landing KPI already uses full forecast data (queries all periods Jan-Dec)
+- Note: dev DB active version (v125) has only 3 lines due to test pollution; original v1 has full 18 months
+- TypeScript compiles clean, all 53 tests pass
+- **Commit:** `feat(phase-3): extend forecast visibility to 18 months`
+
