@@ -55,3 +55,18 @@
 
 ## D16: Real-API agent retry test skipped
 **Phase 2** — The spec requests a real-API integration test for agent retry. Skipped because `ANTHROPIC_API_KEY` is not set. The retry behavior is covered by 4 mocked tests. When the API key is available, a live test can be added.
+
+## D17: Forecast assumptions as frozen dataclass
+**Phase 4** — `ForecastAssumptions` is a `@dataclass(frozen=True)` rather than a Pydantic BaseSettings. Rationale: these aren't environment variables — they're model parameters. A frozen dataclass is simple, immutable, and can be passed as a function argument. Both `forecast_engine.py` and the transparency API reference `DEFAULT_ASSUMPTIONS` from `forecast_assumptions.py`.
+
+## D18: compute_forecast() extracted from generate_forecast()
+**Phase 6** — The core forecast computation was extracted into `compute_forecast()` which returns `ForecastLineData` objects (plain dataclasses, not ORM models). `generate_forecast()` wraps it with persistence. The what-if endpoint calls `compute_forecast()` directly. This avoids duplicating the forecast logic while keeping the scenario path stateless.
+
+## D19: Simulator events from constants, not DB
+**Phase 4** — The simulator events endpoint reads `STORY_VARIANCES` from `monthly_simulator.py` rather than querying a new table. Rationale: the spec says to skip the `SimulatorEvent` table if it adds complexity. Since the events are static narrative constants, reading them directly is simpler and guaranteed correct.
+
+## D20: Headcount acceleration as separate parameter
+**Phase 6** — The `headcount_acceleration_multiplier` is a separate parameter on `compute_forecast()` rather than a field on `ForecastAssumptions`. Rationale: it's a multiplier on top of the hire pace, not a fundamental assumption. It affects both planned hires (from open positions) and growth hires (from `quarterly_hire_growth`), applied probabilistically to planned hires and multiplicatively to growth hires.
+
+## D21: Test comp band check scoped to seeded employees
+**Phase 4** — `test_comp_within_bands` now filters to `E0xxx` employees (original seed) rather than checking all employees. Simulator-generated hires can have salary premiums (e.g., 15% above-market) that intentionally exceed normal comp bands.

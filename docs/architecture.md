@@ -51,6 +51,12 @@
 
 - **Materiality scoring**: A 0-100 composite score combining absolute dollar size (40%), percentage variance (30%), and unexpectedness (30%). Material threshold is 60.
 
+- **Assumptions as parameters** (Run 3): Forecast assumptions (merit %, attrition rate, benefits load, hire pace, payroll tax rates) live in `forecast_assumptions.py` as a frozen dataclass. Both `forecast_engine.py` and the transparency API reference this single source of truth. The forecast engine's `compute_forecast()` accepts assumptions as a parameter, enabling the what-if simulator to reuse the same computation with different inputs.
+
+- **Stateless what-if** (Run 3): The what-if endpoint calls `compute_forecast()` with scenario assumptions and compares the result to the active forecast. No database writes occur — the response is ephemeral.
+
+- **Test isolation** (Run 3): Tests run against a separate `fpa_copilot_test` Postgres database. A session-scoped fixture creates tables, seeds data (company + forecast + 6 months of simulation), and each test gets a fresh session. The dev database is untouched.
+
 ## Data Flow
 
 ### Seed / Setup Flow
@@ -109,8 +115,8 @@ cost_centers ─┬── employees ─── actuals
 - **TanStack Query** for server state management (stale-while-revalidate caching)
 - **React Router** for client-side routing
 - **Tailwind CSS** for utility-first styling
-- **Recharts** for the actual-vs-forecast chart
-- Pages: Dashboard, Forecast, Variances, Close, Proposals
+- **Recharts** for the actual-vs-forecast chart and forecast projection charts
+- Pages: Dashboard, Forecast, Variances, Close, Proposals, Data & Assumptions, What If
 
 ## API Contracts
 
@@ -135,3 +141,8 @@ cost_centers ─┬── employees ─── actuals
 | POST | `/api/v1/proposals/{id}/accept` | Accept proposal |
 | POST | `/api/v1/proposals/{id}/reject` | Reject proposal |
 | POST | `/api/v1/proposals/{id}/modify-and-accept` | Modify and accept |
+| GET | `/api/v1/transparency/employees` | Paginated/filtered employee list (Run 3) |
+| GET | `/api/v1/transparency/hiring-plan` | Open positions + recent hires (Run 3) |
+| GET | `/api/v1/transparency/assumptions` | Forecast assumptions metadata (Run 3) |
+| GET | `/api/v1/transparency/simulator-events` | Story variance log (Run 3) |
+| POST | `/api/v1/what-if/run` | Stateless scenario calculation (Run 3) |

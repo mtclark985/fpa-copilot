@@ -338,3 +338,29 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - TypeScript compiles clean, all 64 tests pass
 - **Commit:** `feat(phase-7): what-if scenario simulator page`
 
+## Phase 8: Polish, Docs, Demo Verification
+**Completed:** 2026-05-13
+
+- Restarted backend with latest code, verified all new endpoints work:
+  - `/transparency/assumptions` returns 6 categories
+  - `/transparency/simulator-events` returns 12 events (Jan-Dec 2026)
+  - `/what-if/run` returns scenario and baseline forecasts with delta summary
+- Updated README.md: added Run 3 features (transparency, 18-month visibility, what-if simulator, test isolation, agent retry), updated demo script with Data & Assumptions and What If steps, updated test count to 64, updated roadmap
+- Updated docs/architecture.md: new API endpoints table, assumptions-as-parameters design note, stateless what-if note, test isolation note, updated frontend page list
+- Updated DECISIONS.md: 8 new decisions (D14-D21) covering test isolation, agent retry, assumptions dataclass, compute_forecast extraction, simulator events approach, headcount acceleration, comp band test scope
+- All 64 tests pass against isolated test database
+- Frontend TypeScript compiles clean (0 errors)
+- No [WIP] commits
+- **Commit:** `docs(phase-8): run 3 polish and documentation`
+
+## Run 3 Summary
+
+All 8 phases completed on branch `run-3-transparency-and-simulator`. Final state:
+- 64 backend tests passing (up from 48 in Run 2, all against isolated fpa_copilot_test database)
+- Frontend TypeScript compiles clean (0 errors)
+- New backend files: 3 API routers (transparency.py, whatif.py), 1 service module (forecast_assumptions.py), 3 test files (test_agent_retry.py, test_transparency.py, test_whatif.py)
+- Refactored: forecast_engine.py (extracted compute_forecast, parameterized assumptions), base.py (retry logic), conftest.py (test isolation)
+- New frontend: Data & Assumptions page (4 tabs), What If page (5 dials + chart + delta), enhanced Forecast page (chart + period selector)
+- Updated: Layout nav (2 new links), App routes, README, architecture docs, DECISIONS
+- Clean commit history: 9 commits (1 per phase + branch setup)
+

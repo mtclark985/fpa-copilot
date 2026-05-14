@@ -18,6 +18,11 @@ A living forecast platform where the comp expense forecast continuously updates 
 - **Approval workflow** — review, accept, reject, or modify-and-accept forecast change proposals
 - **Forecast versioning** — each accepted proposal creates a new forecast version with full audit trail
 - **Polished UI** with dashboard KPIs, forecast tables (with version selector), variance drill-down, proposals page, and one-click monthly close
+- **Data & Assumptions page** — transparency layer showing company roster, hiring plan, forecast assumptions, and simulator events
+- **18-month forecast visibility** — full forward projection chart with period range selector
+- **What-If scenario simulator** — adjust attrition, merit, benefits, hire pace, and headcount acceleration to see the forecast recalculate without committing changes
+- **Test isolation** — tests run against a separate `fpa_copilot_test` database with controlled seed data
+- **Agent retry logic** — defensive JSON parsing with automatic retry on truncated output
 
 ## Tech Stack
 
@@ -79,6 +84,8 @@ Here's what to click to see the system in action:
 3. **Variances** — Click through months to see variances sorted by materiality. Click any row for the drill-down panel showing volume/rate decomposition.
 4. **Close** — Click "Advance to Next Month" to simulate the next month. Watch actuals generate, variances calculate, and (with API key) all three agents run: detection, attribution, and proposals. A banner shows how many new proposals were created.
 5. **Proposals** — Review pending forecast update proposals. Each card shows the cost center, dollar impact, rationale, and attribution detail. Accept, reject, or modify the delta before accepting. Accepted proposals create a new forecast version reflected on the Dashboard and Forecast pages.
+6. **Data & Assumptions** — Click through 4 tabs: Company (searchable employee roster with CSV export), Hiring Plan (open positions + recent hires), Forecast Assumptions (merit, attrition, benefits, payroll tax, bonus, hire pace), Simulator Events (chronological log of injected story variances).
+7. **What If** — Drag the sliders to change assumptions. Watch the forecast chart update in real-time. The delta panel shows total 18-month and FY landing impact vs. the active forecast. Nothing is saved.
 
 ## Architecture
 
@@ -106,7 +113,7 @@ fpa-copilot/
 │   └── scripts/          # CLI scripts (seed, simulate, setup)
 ├── frontend/
 │   └── src/
-│       ├── pages/        # Dashboard, Forecast, Variances, Close, Proposals
+│       ├── pages/        # Dashboard, Forecast, Variances, Close, Proposals, Data & Assumptions, What If
 │       ├── components/   # Layout, UI components
 │       ├── lib/          # API client, utilities
 │       └── types/        # TypeScript API types
@@ -123,14 +130,14 @@ cd backend
 python -m pytest app/tests/ -v
 ```
 
-48+ tests covering: model CRUD, forecast math, simulator determinism, variance decomposition, agent output parsing (detection, attribution, proposal), proposal accept/reject/modify logic, audit trail, API endpoints.
+64 tests covering: model CRUD, forecast math, simulator determinism, variance decomposition, agent output parsing (detection, attribution, proposal), proposal accept/reject/modify logic, audit trail, agent retry logic, transparency API endpoints, what-if scenario math. Tests run against isolated `fpa_copilot_test` database.
 
 ## Roadmap
 
 - **Run 1:** ~~Project scaffolding, data model, forecast engine, variance detection agent, UI~~ (Complete)
 - **Run 2:** ~~Variance attribution agent, forecast update proposals, approval workflow UI~~ (Complete)
-- **Run 3:** Monthly close report generation, commentary writing agent, one-click close demo
-- **Run 4:** Auth, multi-tenant, deployment to Vercel + Railway
+- **Run 3:** ~~Data & Assumptions transparency, 18-month forecast visibility, What-If scenario simulator, test isolation~~ (Complete)
+- **Run 4:** Auth, multi-tenant, deployment, monthly close report generation
 
 ## License
 
