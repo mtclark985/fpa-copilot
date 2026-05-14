@@ -1,424 +1,412 @@
-# FP&A Copilot — Run 2 Spec
+# FP&A Copilot — Run 3 Spec
 
 **Author:** Michael Clark
-**Run:** 2 of ~4
-**Estimated autonomous runtime:** 4-8 hours
-**Branch:** `run-2-approval-workflow` (do not commit to main)
-**Goal of this run:** Add the approval workflow — the core differentiator of this product. Two new agents (Variance Attribution + Forecast Update Proposal) and a UI flow that lets a human accept, reject, or modify proposed forecast changes. By the end of this run, the killer demo is real: hit "Advance Month," watch the system surface variances, attribute them to drivers, propose forward-looking forecast updates, and present them as approvable cards.
+**Run:** 3 of ~4
+**Estimated autonomous runtime:** 4-7 hours
+**Branch:** `run-3-transparency-and-simulator` (off `run-2-approval-workflow`)
+**Theme:** Make it Real
+**Goal of this run:** Transform the demo from "thin veneer over a black box" into something that withstands skeptical inspection. Add three things, in priority order: (1) a "Data & Assumptions" transparency layer that surfaces the company, hiring plan, forecast assumptions, and simulation events; (2) extend forecast UI visibility from 3 months to the full 18 months; (3) a read-only "What If" scenario simulator that lets the user adjust assumptions and see the forecast recalculate without committing changes. Plus a bake-in fix phase for issues surfaced during Run 2 verification.
 
 ---
 
-## 0. Read This First — How Run 2 Differs from Run 1
+## 0. Read This First — Context from Prior Runs
 
-Run 2 is **not greenfield**. The codebase has working conventions and you must respect them. Before writing any code, read the following and let what's already there guide your choices:
+Run 3 builds on a working Run 2. Before writing any code:
 
-1. **Read `RUN_LOG.md` and `DECISIONS.md`** from Run 1. Understand the architecture and the rationale.
-2. **Read `app/agents/base.py`** — extend this pattern, do not introduce a parallel one.
-3. **Read `app/agents/variance_detector.py`** — your new agents should match this style (SYSTEM_PROMPT constant, Pydantic output models, `analyze_period`-style method that takes a session, uses `await self.call(...)`, and persists results back to the database).
-4. **Read `app/services/variance_calculator.py`** — your new services should match this style.
-5. **Read `app/api/variances.py`** — your new endpoints should match this REST style.
-6. **Read `frontend/src/pages/Variances.tsx`** — match the UI patterns, component conventions, TanStack Query usage, and shadcn component choices.
-7. **Read `frontend/src/lib/api.ts`** — extend this client, do not create a parallel one.
+1. **Read `RUN_LOG.md` and `DECISIONS.md`** — understand what's been built and why.
+2. **Read `app/agents/base.py`** — agent base class. Note that `max_tokens` was raised to 16384 during Run 2 verification.
+3. **Read `app/agents/variance_detector.py`, `variance_attributor.py`, `proposal_generator.py`** — the three agents currently in the system. Match their style if any new agent is added.
+4. **Read `app/services/forecast_engine.py`** — this is the core math. The scenario simulator will reuse it, so understand its structure intimately.
+5. **Read `frontend/src/pages/Variances.tsx`, `Proposals.tsx`, `Dashboard.tsx`, `Forecast.tsx`** — established UI conventions. Match them, don't invent new ones.
+6. **Read `app/api/forecast.py`** — note any current limit on how many months are returned. The Run 3 forecast page visibility extension may be a small API change, a frontend filter change, or both.
 
-**Rule:** If you find yourself about to invent a new pattern, stop and check whether an existing pattern already covers it. Consistency with Run 1 is more important than your local opinion on the better way.
+**Rule:** Existing patterns win. If you're tempted to introduce a new pattern, stop and consider extending an existing one instead.
 
 ---
 
 ## 1. What We're Building
 
-In Run 1, when actuals arrive, the system calculates variances and the Variance Detection Agent labels them with severity and a one-sentence rationale. That's diagnostic. It tells you what happened.
+Three product threads in this run, plus one technical-debt thread.
 
-Run 2 makes the system *prescriptive*:
+### Thread 1: Data & Assumptions Page (the transparency layer)
 
-- **Variance Attribution Agent**: For each material variance, traces it to specific drivers (a particular hire, a particular departure, a comp adjustment) — not just "headcount accelerated" but "Risk team filled positions REQ-1041 and REQ-1052 in January, 60 days ahead of plan."
-- **Forecast Update Proposal Agent**: Given the attribution, reasons forward: "If Risk hires landed early, the forward headcount run-rate is now elevated; we should increase the Risk salary forecast by $X per month for the rest of the year." Outputs structured proposals.
-- **Approval UI**: Each proposal appears as a card with rationale, dollar impact, accept/reject/modify controls. Accepted proposals generate a new `ForecastVersion` with the changes applied. Full audit trail.
+A new page at `/data-and-assumptions` that lets a user inspect:
 
-End-to-end demo flow after Run 2:
-1. User hits "Advance to Next Month" on Close page
-2. System ingests actuals → calculates variances → runs Detection Agent (existing, unchanged)
-3. System runs Attribution Agent (new) → links variances to specific employees/positions/events
-4. System runs Proposal Agent (new) → generates forecast update proposals
-5. UI shows new "Proposals" page with cards
-6. User reviews each proposal: accept, reject, or modify the dollar impact
-7. On accept, a new ForecastVersion is created with the change applied; the old version is archived; the dashboard reflects the new forward forecast
+- **Company tab**: searchable, filterable table of all employees with cost center, level, location, hire date, base salary, bonus target, status (active / terminated / new hire). Sortable columns. Export to CSV.
+- **Hiring Plan tab**: list of open positions with cost center, target level, target start date, status. Plus a panel listing all hires that have occurred in the simulated timeline so far, with start dates and source (planned vs. unplanned).
+- **Forecast Assumptions tab**: read-only display of the assumptions baked into `forecast_engine.py`:
+  - Merit cycle: % and timing
+  - Attrition: annual rate, distribution method
+  - Benefits load: % of base salary
+  - Payroll tax: FICA rate, FICA wage base, Medicare rate
+  - Bonus accrual: target % by level, payout month
+  - Planned hire pace: % of headcount per quarter
+  
+  Each assumption is shown with its current value, a one-sentence description of what it controls, and a "where this is used" note.
+- **Simulator Events tab**: chronological log of the "story variances" — the narrative events the simulator injected each month. Lets a user see *why* certain variances exist (e.g., "May: company-wide 2% COLA for Charlotte employees" appears here).
+
+This is read-only in this run. Editing assumptions is a possible future feature, but transparency comes first.
+
+### Thread 2: Extend Forecast Visibility
+
+The forecast is generated 18 months forward, but the Forecast page currently only shows 3. Make the full 18-month forward forecast visible:
+
+- Forecast table shows all 18 months by default, scrolled horizontally if needed (sticky cost-center column on the left)
+- Chart on the Forecast page shows the full forward forecast
+- Add a small period range selector for users who want to zoom in
+- Verify the Dashboard's "FY Landing" KPI is using the full forecast, not a truncated subset
+
+This is a focused fix, not a feature build. Whatever's currently limiting the display, find it and remove it.
+
+### Thread 3: "What If" Scenario Simulator
+
+A new page at `/what-if` (or a panel on the existing Forecast page — your judgment based on UX) that lets the user adjust forecast assumptions and see the result *without committing*.
+
+Adjustable inputs (start with these — more can be added later):
+- Annual attrition rate (default 12%, range 5-25%)
+- Merit % (default 4%, range 0-10%)
+- Benefits load % (default 18%, range 10-25%)
+- Planned hire pace per quarter (default 2% of headcount, range 0-5%)
+- A "headcount acceleration" multiplier: 1.0 = normal pace, 1.5 = 50% faster hiring, 0.5 = hiring freeze. Applied to all forward planned hires.
+
+The page shows:
+- Current active forecast (from real `ForecastVersion`) as a baseline line on a chart
+- Scenario forecast (recalculated client-side based on the dials, or via a stateless backend endpoint) as an overlay line
+- A "delta" panel showing the dollar impact: total 18-month delta, FY landing delta, breakdown by category (salary / benefits / taxes)
+- A "Reset" button to return all dials to current assumption values
+- A short note: "This is a scenario. Changes are not saved." — make clear nothing here affects the real forecast or generates proposals
+
+**Critical scoping rule:** the scenario simulator is read-only and ephemeral. It does NOT:
+- Persist scenarios to the database
+- Generate proposals
+- Affect any agent
+- Create new ForecastVersions
+- Touch the approval workflow
+
+If you find yourself building anything in those directions, stop and reread this section.
+
+### Thread 4: Run 2 Technical Debt
+
+Fix during the dedicated phase, not scattered. Specifically:
+- The "1 pre-existing failing test" mentioned in Run 2's RUN_LOG. Find it, understand it, fix or document why it's actually fine.
+- Test isolation: tests should not write to the production database. Configure pytest to use a separate test database (typically a `_test` suffix). The mechanism is your choice — fixtures, conftest configuration, or an in-memory SQLite for non-Postgres-specific tests. Document the approach in DECISIONS.md.
+- Defensive JSON parsing in `app/agents/base.py`: when `json.loads` fails, log the raw response and retry once with a slightly higher max_tokens before giving up. Don't silent-fail.
 
 ---
 
 ## 2. Tech Stack
 
-No new dependencies expected. Use what Run 1 already established:
-- Backend: Python 3.12, FastAPI, SQLAlchemy 2.0 async, Alembic, Pydantic v2, anthropic SDK
-- Frontend: React 18, Vite, TypeScript, Tailwind, shadcn/ui, TanStack Query, Recharts
-- Database: PostgreSQL 16
-- Agent model: `claude-sonnet-4-6` (matches base.py after the Run 1 fix)
-
-If you find yourself needing a new dependency, stop and document in `BLOCKERS.md` before installing.
+No new dependencies expected. Use what Runs 1 and 2 established. If you find yourself needing a new dependency, stop and document in `BLOCKERS.md`.
 
 ---
 
 ## 3. Data Model Changes
 
-New tables. Add via Alembic migration, not by editing models retroactively.
+**Minimal.** Threads 1 and 3 are mostly read-only views over existing data. Thread 4 is process, not schema.
 
-### `ForecastProposal`
-A specific change to the forecast, proposed by an agent, awaiting human decision.
+The only candidate for a schema change is if you want to persist the simulator event log (the "story variance" narratives) as actual database rows instead of hardcoded strings in `monthly_simulator.py`. This would make Thread 1's Simulator Events tab a live database query rather than a hardcoded list. Worth doing if straightforward; skip if it adds complexity.
 
+If you do add a `SimulatorEvent` table:
 ```
 id: int PK
+period: str
+event_type: str  # e.g., 'unplanned_hire_cluster', 'cola_adjustment', 'retention_bonus_event'
+narrative: str   # human-readable description
+affected_cost_center_ids: JSON  # list of ints
 created_at: datetime
-created_for_period: str  # the close period that generated this proposal (e.g., "2026-06")
-status: str  # 'pending' | 'accepted' | 'rejected' | 'modified_and_accepted' | 'superseded'
-
-# What's being proposed
-cost_center_id: int FK
-category: str  # 'salary' | 'bonus' | 'benefits' | 'taxes' | 'other'
-affected_periods: JSON  # list of "YYYY-MM" strings the change applies to, e.g. ["2026-07", "2026-08", ..., "2027-12"]
-delta_per_period: numeric  # dollar amount to add to each affected period
-
-# Why
-agent_rationale: str  # full reasoning from the proposal agent
-driving_variance_ids: JSON  # list of Variance.id values that motivated this proposal
-attributed_events: JSON  # structured events from the attribution agent (see below)
-confidence: str  # 'high' | 'medium' | 'low'
-
-# Decision metadata (populated when status changes)
-decided_at: datetime nullable
-decided_by: str nullable  # placeholder for future auth; "system" or "user" for now
-decision_note: str nullable  # user-provided note on accept/reject/modify
-modified_delta_per_period: numeric nullable  # if user modified the amount before accepting
-
-# Linkage to applied ForecastVersion (populated on accept)
-resulting_forecast_version_id: int FK nullable
 ```
 
-### `AttributionRecord`
-Structured output from the Variance Attribution Agent. One per material variance that the agent could attribute.
+Otherwise, derive the simulator events from existing data in the API layer (look at the seeded story variance constants in `monthly_simulator.py` and expose them through an endpoint).
 
-```
-id: int PK
-variance_id: int FK
-created_at: datetime
-attribution_type: str  # 'early_hire' | 'late_hire' | 'unplanned_hire' | 'unplanned_departure' | 'comp_adjustment' | 'bonus_event' | 'other'
-narrative: str  # one-paragraph natural language explanation
-structured_drivers: JSON  # e.g. [{"type": "hire", "employee_id": 412, "expected_start": "2026-03-01", "actual_start": "2026-01-15"}, ...]
-confidence: str  # 'high' | 'medium' | 'low'
-```
-
-### `ProposalDecisionAudit`
-Append-only log of every decision made on a proposal. One row per state change. Even though the proposal itself stores its current status, this gives us a clean audit trail.
-
-```
-id: int PK
-proposal_id: int FK
-occurred_at: datetime
-from_status: str
-to_status: str
-note: str nullable
-delta_change: numeric nullable  # if modified, the difference between original and final
-```
-
-### Existing tables — minimal changes
-- `ForecastVersion`: add `parent_version_id` FK nullable (so accepted proposals can chain new versions to old ones)
-- `ForecastVersion`: add `source` str column: 'initial_plan' | 'proposal_accepted' | 'manual' — describes how this version was created
-
-That's it. **Do not add other columns** to existing tables. If you think you need more, stop and document in `DECISIONS.md`.
+**Lock the rest of the schema.** No changes to employees, cost centers, positions, variances, forecast lines, forecast versions, proposals, or attribution.
 
 ---
 
-## 4. Scope: What's In and What's Out
+## 4. Scope: In and Out
 
-### In scope for Run 2
-- Two new agents: Attribution + Proposal, following the Run 1 agent base class pattern
-- New API endpoints to trigger them, fetch proposals, and act on them
-- Hook into the existing `POST /api/v1/close/advance-month` flow so the new agents run automatically after variance detection
-- Frontend: new "Proposals" page with card-based approval UI, plus integration with the existing Close page flow
-- Alembic migration for the new tables and ForecastVersion columns
-- Forecast versioning: accepting a proposal creates a new active ForecastVersion that diffs from the prior version
-- Dashboard updates so the active forecast line reflects accepted proposals
-- Tests on the new logic (agent output validation, proposal acceptance creates correct version, modification math is correct)
+### In scope for Run 3
+- Data & Assumptions page with 4 tabs as described
+- Forecast visibility extended to 18 months on Forecast page + Dashboard
+- What-If scenario simulator page with the 5 dials listed
+- Fix the 1 known failing test
+- Test isolation: separate test database
+- Defensive JSON parsing with retry in agent base class
+- Navigation: add links to the new pages in the existing nav shell
+- Tests for the new transparency endpoints and the what-if calculation logic
 
-### Out of scope for Run 2
-- Auth / multi-user (still deferred to Run 4)
-- Bulk accept/reject (one-at-a-time approval only)
-- Undoing an accepted proposal (one-way for now)
-- Commentary generation for monthly close report (Run 3)
-- Editing proposal *rationale* or *affected periods* — user can only modify the dollar delta in this run
-- Cross-cost-center proposals (every proposal targets exactly one cost center × one category × N periods)
+### Out of scope for Run 3
+- Editable forecast assumptions (the Data & Assumptions page is read-only this run)
+- Persisting "what-if" scenarios
+- Generating proposals from scenario outcomes
+- New agents
+- Auth, multi-user, deployment (still Run 4)
+- Revenue or opex forecasting (out of project scope)
+- Chat interface (out of project scope)
+- A close report or monthly commentary generator (deferred — may become Run 4)
 
 ### Stub or mock instead of build
-- Authorship: `decided_by` field gets the string `"user"` when accepted/rejected via UI, `"system"` for any automatic actions
+- Nothing should be stubbed in this run. All threads are scoped to be fully buildable.
 
 ---
 
 ## 5. Phased Build Plan
 
-### Phase 1: Branch setup and Run 2 working agreements
-
-**Goal:** Create the feature branch and read the existing codebase before any new code.
+### Phase 1: Branch setup and read-only sanity check
 
 **Tasks:**
-1. From main (which should currently be at the Run 1 final commit + the model/prompt fix from the morning of 2026-05-13), create branch `run-2-approval-workflow` and check it out
+1. From `run-2-approval-workflow`, create branch `run-3-transparency-and-simulator` and check it out
 2. Read the files listed in Section 0
-3. Create `RUN_LOG.md` entries section for Run 2 (do not overwrite Run 1's entries; append)
-4. Confirm `docker compose up`, `python scripts/setup_demo.py`, and `npm run dev` still work end-to-end before changing anything
-5. Initial commit on the branch: `chore(run-2): branch setup`
+3. Append a Run 3 section to `RUN_LOG.md`
+4. Verify the app still works end-to-end: `docker compose up`, `uvicorn app.main:app`, `npm run dev`. Specifically verify the Run 2 approval workflow still functions (look at one proposal, accept it, see a new forecast version).
+5. Commit: `chore(run-3): branch setup`
 
 **Definition of done:**
-- [ ] Branch exists, currently checked out
-- [ ] App still runs end-to-end (don't break Run 1)
-- [ ] RUN_LOG.md has a Run 2 section started
+- [ ] Branch exists and is checked out
+- [ ] App runs end-to-end
+- [ ] Run 2 functionality verified intact (regression check)
 
-### Phase 2: Data model migration
+### Phase 2: Technical debt — failing test, test isolation, defensive parsing
 
-**Goal:** New tables and ForecastVersion columns.
+This phase comes early on purpose. We're not adding features on top of latent issues.
 
 **Tasks:**
-1. Add SQLAlchemy models: `ForecastProposal`, `AttributionRecord`, `ProposalDecisionAudit`
-2. Add columns to `ForecastVersion`: `parent_version_id`, `source`
-3. Generate Alembic migration
-4. Apply migration: `alembic upgrade head`
-5. Confirm: existing data still loads, new tables exist and are queryable, existing tests still pass
-6. Write 3-5 unit tests covering create/query of new models
+1. Run `pytest` and identify the 1 failing test. Read it. Either fix it, or document in `DECISIONS.md` why it's safe to leave (with strong reasoning).
+2. Set up test isolation:
+   - Create a separate test database connection (e.g., `fpa_copilot_test`) or use SQLite in-memory for non-Postgres-specific tests
+   - Configure pytest fixtures so all tests run against the isolated database
+   - Tests must create their own data and tear it down — no leakage into the dev database
+   - Run the full suite to confirm tests still pass and no dev data is touched
+3. Update `app/agents/base.py`:
+   - In `call()`, when `json.loads()` raises `JSONDecodeError`, log the raw response (truncated to a reasonable length) and retry the same call once with `max_tokens` doubled
+   - If the retry also fails, raise a new exception type (e.g., `AgentOutputError`) with the raw response attached for debugging
+   - Add at least one test for the retry behavior using a mocked client
 
 **Definition of done:**
-- [ ] Migration applies cleanly to existing database with Run 1 data still present
-- [ ] All Run 1 tests still pass
-- [ ] New model tests pass
-- [ ] Commit: `feat(phase-2): data model for proposals and attribution`
+- [ ] All tests pass
+- [ ] Tests run against an isolated database — verify by checking that the dev database is unchanged after a full test run
+- [ ] Agent base class has retry logic and a test for it
+- [ ] DECISIONS.md updated with the test-isolation approach
+- [ ] Commit: `fix(phase-2): test isolation, agent retry, address failing test`
 
-### Phase 3: Variance Attribution Agent
-
-**Goal:** New agent that takes material variances for a period and produces `AttributionRecord` rows linking variances to specific events.
+### Phase 3: Forecast visibility extension
 
 **Tasks:**
-1. Build `app/agents/variance_attributor.py` following the pattern of `variance_detector.py`
-2. Agent input context should include:
-   - The material variances for the period (severity >= medium from the detector, or materiality_score >= 50)
-   - The list of hires that occurred in the period vs. planned hires
-   - The list of departures that occurred in the period
-   - Any open positions in the affected cost center
-   - Salary changes in the period (e.g., off-cycle adjustments)
-3. Agent SYSTEM_PROMPT should make clear:
-   - Job: link each variance to specific structured drivers
-   - Output: an AttributionRecord per variance with attribution_type, narrative, structured_drivers, confidence
-   - Be specific (real employee IDs, real position numbers) not vague
-4. Pydantic output schema mirrors the database structure
-5. Persist `AttributionRecord` rows on completion
-6. Add endpoint `POST /api/v1/attribution/{period}/run`
-7. Tests using mocked Anthropic responses
+1. Identify what's currently capping forecast display at 3 months. Likely candidates:
+   - API endpoint defaulting to small `limit`
+   - Frontend pagination or hardcoded slice
+   - Date filter in the query
+2. Update the API and frontend so the Forecast page shows all 18 months by default
+3. Update the table layout: sticky cost-center column on the left, horizontal scroll for months
+4. Update the Forecast page chart to show full 18-month projection
+5. Add a small period range selector for zoom-in (e.g., quick filters: "Next 3 months", "Next 6 months", "Full 18 months")
+6. Verify Dashboard's FY Landing KPI is using full data
+7. Tests where applicable
 
 **Definition of done:**
-- [ ] Agent runs against real Run 1 seeded data and produces attributions for at least 70% of material variances
-- [ ] Attributions reference real employee_ids / position_ids that exist in the database
-- [ ] Endpoint works and persists records
+- [ ] Forecast page shows 18 months by default
+- [ ] Cost center column is sticky on horizontal scroll
+- [ ] Chart shows full forward projection
+- [ ] Period range selector works
+- [ ] Dashboard FY Landing reflects accepted proposals' impact across the full forward forecast
+- [ ] Commit: `feat(phase-3): extend forecast visibility to 18 months`
+
+### Phase 4: Data & Assumptions backend
+
+**Tasks:**
+1. Add endpoints under `/api/v1/transparency/` (or similar — match conventions):
+   - `GET /transparency/employees` — paginated, filterable employee list
+   - `GET /transparency/hiring-plan` — open positions + recent hires
+   - `GET /transparency/assumptions` — current forecast assumptions, returned as structured JSON with name, value, unit, description, "used in" reference
+   - `GET /transparency/simulator-events` — chronological list of injected story variances
+2. The assumptions endpoint should pull values from a single source of truth (probably a module-level constants file or pydantic settings, not hardcoded inline in `forecast_engine.py`). If the assumptions are currently scattered as magic numbers, lift them into a named constants module as part of this phase. This becomes the source of truth for both `forecast_engine.py` and the new endpoint.
+3. Simulator events: either query from a new `SimulatorEvent` table (if you added one — see Section 3) or expose the existing hardcoded story-variance constants from `monthly_simulator.py` via the endpoint
+4. Tests for each endpoint
+
+**Definition of done:**
+- [ ] All four endpoints return well-structured JSON
+- [ ] Assumptions are pulled from a single source of truth that both `forecast_engine.py` and the API endpoint reference
+- [ ] Simulator events are accessible
 - [ ] Tests pass
-- [ ] Commit: `feat(phase-3): variance attribution agent`
+- [ ] Commit: `feat(phase-4): data and assumptions API`
 
-### Phase 4: Forecast Update Proposal Agent
-
-**Goal:** New agent that takes attribution records and produces `ForecastProposal` rows.
+### Phase 5: Data & Assumptions frontend
 
 **Tasks:**
-1. Build `app/agents/proposal_generator.py`
-2. Agent input context:
-   - Attribution records for the period
-   - Current active forecast (next 12 months by cost center × category)
-   - Any prior proposals already accepted in this cost center (don't double-propose)
-3. Agent SYSTEM_PROMPT should:
-   - Frame the task: "you decide which attributed variances reflect structural changes worth updating the forecast for, vs. one-time events to ignore"
-   - Be explicit that not every variance becomes a proposal — one-time events should NOT generate a forward-looking proposal
-   - For each proposal, output: which cost center, which category, which periods, dollar delta per period, rationale, confidence, and which driving_variance_ids motivated it
-4. Pydantic output schema: a list of `ProposalCandidate` objects
-5. Persist as `ForecastProposal` rows with status='pending'
-6. Add endpoint `POST /api/v1/proposals/{period}/generate`
-7. Tests
-
-**Key design rule:** the proposal agent should be conservative. A bias toward fewer, better-justified proposals over many speculative ones. The agent should be willing to say "no proposals warranted" for a quiet month.
+1. New page at `/data-and-assumptions`
+2. Tab navigation for the 4 sections (use shadcn Tabs component for consistency)
+3. **Company tab:**
+   - TanStack Query-backed data table
+   - Columns: Employee ID, Name, Cost Center, Level, Location, Hire Date, Base Salary, Status
+   - Search box (filters by name or employee_number)
+   - Cost center filter dropdown
+   - Status filter (Active / Terminated / All)
+   - Sort by any column
+   - CSV export button (use existing CSV export pattern from Forecast page)
+4. **Hiring Plan tab:**
+   - Two sections: Open Positions, and Recent Hires (last 6 months)
+   - Each as a table with relevant columns
+5. **Forecast Assumptions tab:**
+   - Card layout, one card per assumption category (Merit, Attrition, Benefits, Payroll Tax, Bonus, Hire Pace)
+   - Each card shows: current value, unit, description, "used in" note
+   - Visual: clean, scannable, low density
+6. **Simulator Events tab:**
+   - Chronological list, grouped by period
+   - Each event shows: period, event type, narrative
+7. Navigation: add "Data & Assumptions" link to the nav shell
+8. Loading states, empty states, error boundaries
 
 **Definition of done:**
-- [ ] Agent runs and produces 0-10 proposals per period (not 50+)
-- [ ] Each proposal references real driving_variance_ids
-- [ ] Quiet months produce few proposals; eventful months (e.g., the May COLA, the Risk hiring acceleration) produce specific proposals tied to those events
-- [ ] Endpoint persists proposals
-- [ ] Tests pass
-- [ ] Commit: `feat(phase-4): forecast update proposal agent`
+- [ ] Page renders all 4 tabs cleanly
+- [ ] Employee table is searchable, filterable, sortable, exportable
+- [ ] Assumptions display matches the structure of the API response
+- [ ] Visual quality matches existing pages
+- [ ] Navigation works
+- [ ] Commit: `feat(phase-5): data and assumptions page`
 
-### Phase 5: Wire new agents into close flow
-
-**Goal:** Make the existing `POST /api/v1/close/advance-month` endpoint chain through the new agents automatically.
+### Phase 6: What-If simulator backend
 
 **Tasks:**
-1. Update the advance-month endpoint to call (in order): simulate month → calculate variances → run detection agent → run attribution agent → run proposal agent
-2. Each step should be idempotent (re-runnable without duplicates)
-3. Add logging at each step
-4. Update tests for the close flow
-5. Run the chain against the 6 already-seeded months: regenerate detection assessments (already exist, no-op), generate attribution records, generate proposals
-6. Verify proposal count is sensible across the 6 months (probably 8-25 total proposals)
+1. New endpoint: `POST /api/v1/what-if/run`
+   - Request body: a `WhatIfScenario` object with the 5 dial values (`attrition_rate`, `merit_pct`, `benefits_load_pct`, `hire_pace_per_quarter`, `headcount_acceleration_multiplier`)
+   - Response: an 18-month forecast computed using those scenario values, returned in the same shape as the regular forecast endpoint, plus a "delta" object summarizing the difference vs. the active forecast
+2. **Critical:** this endpoint must reuse `forecast_engine.py`. Do NOT duplicate the forecast logic. Refactor `forecast_engine.py` if needed so it accepts assumption parameters as arguments rather than reading them from constants. The existing forecast-generation should call `forecast_engine.compute(default_assumptions)` and the scenario should call `forecast_engine.compute(scenario_assumptions)`. Same code, different parameters.
+3. Endpoint is stateless: no database writes, no records persisted
+4. Tests:
+   - Default scenario (all dials at current values) produces a forecast equal to the active forecast within rounding tolerance
+   - Bumping attrition higher should reduce total comp expense
+   - Bumping hire_pace higher should increase total comp expense
+   - Headcount acceleration of 0.5 (freeze) should reduce expense vs. 1.0
 
 **Definition of done:**
-- [ ] One API call drives the full chain
-- [ ] Re-running the chain doesn't create duplicate records
-- [ ] All 6 seeded months have attribution + proposals after running
-- [ ] Tests pass
-- [ ] Commit: `feat(phase-5): chain attribution and proposals into close flow`
+- [ ] Endpoint works
+- [ ] `forecast_engine.py` is parameterized (no longer reads assumptions from module-level constants directly)
+- [ ] All forecast generation code paths (initial seed, scenario, future proposal flow) go through the same `compute()` function
+- [ ] Tests pass and prove the math behaves correctly under different scenarios
+- [ ] Commit: `feat(phase-6): what-if scenario calculation engine`
 
-### Phase 6: Proposal endpoints (CRUD + decisions)
-
-**Goal:** API surface for the UI to read proposals and take actions.
-
-**Endpoints:**
-- `GET /api/v1/proposals` — list, filterable by status (`?status=pending`), period, cost_center
-- `GET /api/v1/proposals/{id}` — full detail including attribution records and driving variances
-- `POST /api/v1/proposals/{id}/accept` — body optional `{"note": "..."}`; creates new ForecastVersion, updates proposal status to 'accepted'
-- `POST /api/v1/proposals/{id}/reject` — body optional `{"note": "..."}`; status to 'rejected'
-- `POST /api/v1/proposals/{id}/modify-and-accept` — body `{"modified_delta_per_period": <number>, "note": "..."}`; same as accept but applies the modified delta and status is 'modified_and_accepted'
-
-**Forecast version creation on accept:**
-1. Clone the current active ForecastVersion (copy all ForecastLine rows)
-2. Apply the delta from the proposal to the matching cost_center × category × affected_periods
-3. Set old version `is_active=false`, new version `is_active=true`
-4. Set new version `parent_version_id = old.id`, `source = 'proposal_accepted'`
-5. Set `resulting_forecast_version_id` on the proposal
-6. Append a `ProposalDecisionAudit` row
-
-**Definition of done:**
-- [ ] All five endpoints work
-- [ ] Accepting a proposal: new forecast version exists, is active, has the delta applied to the right lines
-- [ ] Rejecting a proposal: status changes, no forecast version created
-- [ ] Modify-and-accept: forecast version uses the modified delta, audit captures both original and final
-- [ ] Tests for each endpoint covering happy path and basic error cases
-- [ ] Commit: `feat(phase-6): proposal CRUD and decision endpoints`
-
-### Phase 7: Proposals page (frontend)
-
-**Goal:** New page listing pending proposals as cards, with full detail and accept/reject/modify controls.
+### Phase 7: What-If simulator frontend
 
 **Tasks:**
-1. Add `Proposals` page at `/proposals` route
-2. Add navigation link in the existing nav shell
-3. Top of page: filter chips (Pending / Accepted / Rejected / All) and a period selector
-4. Card layout for each proposal showing:
-   - Header: cost center name, category, period range
-   - Dollar impact: total delta and per-period delta with clear sign (+/- coloring)
-   - Confidence badge
-   - Agent rationale (full text)
-   - Expandable section "Driving variances" → shows variance line items
-   - Expandable section "Attribution detail" → shows attribution narrative and structured drivers
-   - Action buttons: Accept (green), Reject (red), Modify (neutral)
-5. Modify flow: clicking Modify opens an inline numeric input prefilled with the proposed delta; user changes it; Confirm button becomes "Accept Modified"
-6. Accept / Reject / Confirm flows all open an optional note field, then call the API and refresh the list
-7. After action: show a toast, the card moves out of "Pending" (or is filtered out)
-8. Empty state when no pending proposals: a clean message and a "Run analysis for [period]" CTA
+1. New page at `/what-if`
+2. Layout: left panel with the 5 dials (use shadcn Slider components), right panel with the chart and delta breakdown
+3. Each dial has:
+   - Label, current default value, min/max range, unit
+   - Visible numeric value updating live as user drags
+   - "Reset to default" button
+4. Chart shows two lines: Active Forecast (baseline) and Scenario Forecast (overlay)
+5. Below chart: "Delta vs. Active Forecast" panel with:
+   - Total 18-month dollar impact
+   - FY Landing impact
+   - Category breakdown (salary, benefits, taxes)
+6. Debounce dial inputs so we don't spam the backend with every pixel of drag movement (500ms debounce)
+7. Persistent banner: "This is a scenario. Changes are not saved and do not affect proposals or the active forecast."
+8. "Reset All" button to return everything to defaults
+9. Loading state while the scenario is recalculating
+10. Navigation: add "What If" link to nav shell
 
 **Definition of done:**
-- [ ] Page loads, lists pending proposals
-- [ ] Each card renders all fields properly with clean styling consistent with existing pages
-- [ ] Accept, Reject, and Modify-and-Accept all work end-to-end
-- [ ] After action, list updates correctly
-- [ ] Empty state and error states handled
-- [ ] No console errors
-- [ ] Commit: `feat(phase-7): proposals page with approval workflow`
+- [ ] Page renders with all 5 dials
+- [ ] Adjusting a dial recalculates the scenario forecast and updates the chart
+- [ ] Delta panel shows correct numbers
+- [ ] Debounce prevents request flood
+- [ ] Banner is visible and clear
+- [ ] Reset works
+- [ ] Commit: `feat(phase-7): what-if scenario simulator page`
 
-### Phase 8: Dashboard and Forecast page integration
-
-**Goal:** Make the rest of the app reflect accepted proposals.
+### Phase 8: Polish, docs, demo verification
 
 **Tasks:**
-1. The Dashboard "FY Landing" KPI and the actual-vs-forecast chart should pull from the active ForecastVersion (which now reflects accepted proposals)
-2. Add a small "Active Forecast: [name] (v[number], updated MMM DD)" indicator to the dashboard so you can see when the forecast has changed
-3. Forecast page: add a version selector at the top so user can view prior versions
-4. Add a "Forecast History" section to the Dashboard or its own small page: list of forecast versions with source ("Initial Plan" / "Proposal Accepted: ...") and timestamps
-5. Close page: after advancing a month, surface a new banner "N new proposals awaiting your review" with a button to jump to Proposals page
+1. Run the full demo flow end-to-end and identify any rough edges:
+   - Open Dashboard → see real KPIs and forecast
+   - Open Data & Assumptions → click through all 4 tabs, look at the underlying data
+   - Open Forecast → see all 18 months, scroll horizontally
+   - Open What-If → adjust attrition higher, see forecast drop, reset
+   - Open Variances → review a high-severity variance with agent reasoning
+   - Open Proposals → review a pending proposal, modify-and-accept it
+   - Open Dashboard → verify FY Landing changed to reflect the accepted proposal
+2. Fix any rough edges found
+3. Update `README.md`:
+   - Add Run 3 section to the feature list
+   - Update the demo script to walk through the new pages
+4. Update `docs/architecture.md` to reflect new endpoints and the assumptions-as-parameters refactor
+5. Update `DECISIONS.md` with key Run 3 calls (test isolation approach, scenario stateless design, etc.)
+6. Final RUN_LOG.md entry summarizing Run 3
+7. All tests passing, no console errors, no `[WIP]` commits
 
 **Definition of done:**
-- [ ] Dashboard reflects active version
-- [ ] Forecast page can show prior versions
-- [ ] Close page surfaces new-proposals notice
-- [ ] Commit: `feat(phase-8): dashboard and forecast integration with versioned forecasts`
-
-### Phase 9: Polish and demo flow verification
-
-**Goal:** Tighten loose ends, verify the killer demo flow works end-to-end, update docs.
-
-**Tasks:**
-1. Reset and reseed the database; run all 6 months through the full chain
-2. Verify the demo script: open dashboard → advance to a new month (say, simulate "2026-07") → wait → see new variances + attributions + proposals → go to Proposals page → review a proposal → modify and accept → return to dashboard → see forecast changed
-3. Update `README.md` Run 2 section: describe the approval workflow, add it to the demo script section
-4. Update `docs/architecture.md` to include the new agents and proposal flow
-5. Update `DECISIONS.md` with any non-trivial calls made during Run 2
-6. Ensure `RUN_LOG.md` is comprehensive for Run 2
-
-**Definition of done:**
-- [ ] Full demo flow works in one session without manual intervention beyond clicks
-- [ ] Documentation updated
-- [ ] All tests passing
-- [ ] No `[WIP]` commits
-- [ ] Commit: `docs(phase-9): run 2 documentation and polish`
+- [ ] Full end-to-end demo works smoothly
+- [ ] Documentation reflects Run 3 changes
+- [ ] Commit: `docs(phase-8): run 3 polish and documentation`
 
 ---
 
-## 6. Working Agreements (Run 2 — note differences from Run 1)
+## 6. Working Agreements (Run 3 — note differences from Run 2)
 
-**Commit policy:** same as Run 1. Conventional commits, one per phase minimum, more granular OK.
+**Branching:** all commits on `run-3-transparency-and-simulator`. Do NOT push to main. Do NOT merge to main. Do NOT merge to `run-2-approval-workflow`. Michael will review and merge manually.
 
-**Logging policy:** append Run 2 entries to RUN_LOG.md. Do not overwrite Run 1 entries.
+**Commit policy:** same as prior runs.
 
-**Branching:** all commits on `run-2-approval-workflow`. Do NOT push to main. Do NOT merge to main. Michael will review and merge manually.
+**Logging:** append Run 3 section to existing RUN_LOG.md. Do not overwrite prior runs.
 
 **When to stop and wait for human:**
-- Same triggers as Run 1
-- Plus: any change that would break a Run 1 endpoint or schema relationship (e.g., renaming a column on an existing table) — stop and document
-- Plus: if the attribution or proposal agent's output quality looks weak on the first real run (e.g., proposals reference non-existent employees, attributions are generic) — stop, document the issue in RUN_LOG.md, and wait for human review of the prompt
-- Plus: if proposal count for a quiet month exceeds 15 or for the seeded months exceeds 40 total — the agent is over-proposing; stop and let human tune the prompt
+- Any task requiring `ANTHROPIC_API_KEY` if not set
+- Any breaking change to existing endpoints used by the Variances or Proposals pages
+- Any schema change beyond what's described in Section 3
+- If the test isolation work surfaces fundamental issues with how tests are structured — stop and document, don't reinvent
+- If the `forecast_engine.py` refactor (Phase 6) reveals the engine has implicit dependencies that make parameterization hard — stop and document the situation before making invasive changes
+- Same general triggers as prior runs
 
 **When NOT to stop:**
-- Same as Run 1
-- Plus: any inconsistency between the spec and the existing codebase that can be resolved by matching the existing codebase. The existing codebase wins.
+- Same as prior runs
+- Plus: lint, type, or test errors from your own new code — fix them
+- Plus: inconsistencies between spec and existing code — existing code wins, document the choice
 
-**Decision log:** every non-trivial choice that integrates with existing code (which patterns to follow, how to handle edge cases in the proposal logic) goes in DECISIONS.md with rationale.
+**Decision log:** every non-trivial call (test isolation mechanism, assumption-constants module location, scenario UI layout choices) goes in DECISIONS.md with rationale.
+
+**Real-data integration test:** the agent retry logic in Phase 2 should have at least one test that does NOT use a mocked Anthropic client — it should make a real API call against a small fixture variance and confirm the retry behavior works end-to-end. This is one place where mocked-only testing has hidden problems in past runs.
 
 ---
 
 ## 7. Environment
 
-`.env` is unchanged from Run 1. ANTHROPIC_API_KEY must be set. Docker Postgres must be running.
+`.env` unchanged. ANTHROPIC_API_KEY required. Docker Postgres running.
 
 ---
 
-## 8. Definition of Done for Run 2
+## 8. Definition of Done for Run 3
 
 The run is successful when all of the following are true:
-- [ ] All 9 phases complete on branch `run-2-approval-workflow`
+- [ ] All 8 phases complete on branch `run-3-transparency-and-simulator`
 - [ ] Branch has clean commit history
-- [ ] App runs end-to-end: docker → backend → frontend → full demo flow works
-- [ ] All Run 1 functionality still works (regression check)
-- [ ] Variance Attribution Agent produces high-quality attributions tied to real employees/positions
-- [ ] Forecast Update Proposal Agent produces a sensible number of well-justified proposals (not over-proposing)
-- [ ] Approval UI lets a user accept, reject, or modify-and-accept proposals
-- [ ] Accepting a proposal creates a new ForecastVersion and the dashboard reflects it
-- [ ] All tests passing
+- [ ] App runs end-to-end with all Run 1, Run 2, and Run 3 functionality working
+- [ ] No regression in existing Variances, Proposals, Dashboard, Forecast, or Close pages
+- [ ] Data & Assumptions page exists with all 4 tabs functional
+- [ ] Forecast page shows full 18-month forward forecast
+- [ ] What-If simulator page exists and recalculates the forecast based on dial inputs
+- [ ] All tests passing against an isolated test database (dev database is untouched after a test run)
+- [ ] Agent base class has retry logic and a real-API integration test
+- [ ] `forecast_engine.py` accepts assumptions as parameters (no module-level magic numbers)
 - [ ] Documentation updated
 
 ---
 
 ## Starting Prompt for Claude Code
 
-Paste this verbatim into Claude Code when kicking off the run:
+Paste this verbatim into Claude Code:
 
 ```
 Read SPEC.md in full before doing anything else. Then read the files listed in
-Section 0 of the spec. Confirm you understand the architecture from Run 1 and
-the goal of Run 2.
+Section 0 of the spec. Confirm you understand the architecture from Runs 1 and 2
+and the goal of Run 3.
 
-This is a Run 2 spec. The codebase already has working code from Run 1. You
-must integrate with existing patterns, not invent parallel ones. When in doubt,
-match what's already there.
+This is a Run 3 spec. The codebase already has working code from Runs 1 and 2.
+You must integrate with existing patterns, not invent parallel ones. When in
+doubt, match what's already there.
 
-Create the branch `run-2-approval-workflow` from main. All commits go on the
-branch. Do NOT push to main. Do NOT merge to main.
+Create the branch `run-3-transparency-and-simulator` from `run-2-approval-workflow`.
+All commits go on the new branch. Do NOT push to main or to run-2-approval-workflow.
 
-Execute Phases 1 through 9 in order. For each phase:
+Execute Phases 1 through 8 in order. For each phase:
 1. Read the phase tasks
 2. Implement them
 3. Run tests
