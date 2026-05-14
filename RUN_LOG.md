@@ -298,3 +298,22 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - TypeScript compiles clean, all 59 tests pass
 - **Commit:** `feat(phase-5): data and assumptions page`
 
+## Phase 6: What-If Simulator Backend
+**Completed:** 2026-05-13
+
+- Refactored `forecast_engine.py`: extracted `compute_forecast()` — pure computation, no DB writes; `generate_forecast()` now wraps it with persistence
+- Added `ForecastLineData` dataclass for non-ORM forecast output
+- Added `headcount_acceleration` parameter to `compute_forecast()` — multiplier for planned and growth hires
+- Created `whatif.py` API router with `POST /what-if/run`:
+  - Request: `WhatIfScenario` with 5 dials (attrition_rate, merit_pct, benefits_load_pct, hire_pace_per_quarter, headcount_acceleration_multiplier)
+  - Response: scenario forecast lines, baseline forecast lines, delta summary (total 18-month, FY landing, by category)
+  - Stateless: no database writes, no records persisted
+- 5 what-if tests proving math behavior:
+  - Default scenario produces valid output
+  - Higher attrition reduces expense
+  - Higher hire pace increases expense
+  - Headcount freeze (0.5x) reduces expense
+  - Delta summary has category breakdown
+- All 64 tests pass
+- **Commit:** `feat(phase-6): what-if scenario calculation engine`
+

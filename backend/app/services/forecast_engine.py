@@ -8,6 +8,7 @@ attrition, bonus accrual, benefits load, and payroll taxes.
 import datetime
 import random
 from collections import defaultdict
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,17 @@ from app.models.employee import Employee
 from app.models.forecast import ForecastLine, ForecastVersion
 from app.models.position import Position
 from app.services.forecast_assumptions import DEFAULT_ASSUMPTIONS, ForecastAssumptions
+
+
+@dataclass
+class ForecastLineData:
+    """A computed forecast line (not persisted)."""
+
+    cost_center_id: int
+    period: str
+    category: str
+    amount: float
+    headcount_eop: int
 
 
 def _monthly_fica(annual_salary: float, assumptions: ForecastAssumptions) -> float:
@@ -31,16 +43,18 @@ def _monthly_fica(annual_salary: float, assumptions: ForecastAssumptions) -> flo
         return ss_monthly + medicare_monthly
 
 
-async def generate_forecast(
+async def compute_forecast(
     session: AsyncSession,
     start_date: datetime.date = datetime.date(2026, 1, 1),
     months: int = 18,
-    version_name: str = "Initial Plan FY26",
     assumptions: ForecastAssumptions | None = None,
-) -> ForecastVersion:
-    """Build a full driver-based forecast and persist it.
+    headcount_acceleration: float = 1.0,
+) -> list[ForecastLineData]:
+    """Compute forecast lines without persisting.
 
-    Returns the created ForecastVersion with all lines attached.
+    This is the core calculation shared by generate_forecast() and
+    the what-if scenario endpoint. Returns a list of ForecastLineData
+    objects (not ORM models).
     """
     if assumptions is None:
         assumptions = DEFAULT_ASSUMPTIONS
@@ -61,14 +75,7 @@ async def generate_forecast(
     cc_result = await session.execute(select(CostCenter))
     cost_centers = {cc.id: cc for cc in cc_result.scalars().all()}
 
-    # Create forecast version
-    version = ForecastVersion(name=version_name, is_active=True)
-    session.add(version)
-    await session.flush()
-
     # Build month-by-month forecast
-    # Track headcount per cost center per month
-    # Start with current employees grouped by cost center
     cc_employees: dict[int, list[dict[str, float | str | int]]] = defaultdict(list)
     for emp in employees:
         cc_employees[emp.cost_center_id].append({
@@ -91,14 +98,14 @@ async def generate_forecast(
         })
 
     # Per-month aggregation
-    lines: list[ForecastLine] = []
+    lines: list[ForecastLineData] = []
 
     for month_offset in range(months):
         year = start_date.year + (start_date.month + month_offset - 1) // 12
         month = (start_date.month + month_offset - 1) % 12 + 1
         period = f"{year:04d}-{month:02d}"
 
-        # Apply merit cycle in April
+        # Apply merit cycle
         if month == assumptions.merit_month:
             for cc_id in cc_employees:
                 for emp_data in cc_employees[cc_id]:
@@ -106,8 +113,11 @@ async def generate_forecast(
                     merit = max(0.0, min(0.08, merit))  # clamp 0-8%
                     emp_data["salary"] = float(emp_data["salary"]) * (1 + merit)
 
-        # Add planned hires from open positions
+        # Add planned hires from open positions (affected by headcount_acceleration)
         for pos_data in position_by_month.get(period, []):
+            # headcount_acceleration < 1 = fewer hires, > 1 = more
+            if headcount_acceleration < 1.0 and random.random() > headcount_acceleration:
+                continue  # Skip this hire
             cc_id = int(pos_data["cost_center_id"])
             cc_employees[cc_id].append({
                 "salary": pos_data["salary"],
@@ -115,11 +125,11 @@ async def generate_forecast(
                 "level": pos_data["level"],
             })
 
-        # Add growth hires (2% of headcount per quarter, evenly across 3 months)
+        # Add growth hires (adjusted by hire pace and headcount acceleration)
         if month % 3 == 1:  # first month of quarter
             total_hc = sum(len(emps) for emps in cc_employees.values())
-            new_hires = max(1, int(total_hc * assumptions.quarterly_hire_growth / 3))
-            # Distribute across cost centers proportionally
+            base_hires = total_hc * assumptions.quarterly_hire_growth / 3
+            new_hires = max(0, int(base_hires * headcount_acceleration))
             cc_ids = [cc_id for cc_id in cc_employees if cc_employees[cc_id]]
             for _ in range(new_hires):
                 target_cc = random.choice(cc_ids)
@@ -150,7 +160,6 @@ async def generate_forecast(
             total_benefits = sum(float(e["salary"]) * assumptions.benefits_load_pct / 12 for e in emps)
             total_taxes = sum(_monthly_fica(float(e["salary"]), assumptions) for e in emps)
 
-            # Bonus: accrued monthly, target % of salary
             total_bonus = sum(
                 float(e["salary"]) * float(e["bonus_pct"]) / 100 / 12 for e in emps
             )
@@ -163,17 +172,47 @@ async def generate_forecast(
                 ("benefits", total_benefits),
                 ("taxes", total_taxes),
             ]:
-                line = ForecastLine(
-                    version_id=version.id,
+                lines.append(ForecastLineData(
                     cost_center_id=cc_id,
                     period=period,
                     category=category,
                     amount=round(amount, 2),
                     headcount_eop=headcount,
-                )
-                lines.append(line)
+                ))
 
-    session.add_all(lines)
+    return lines
+
+
+async def generate_forecast(
+    session: AsyncSession,
+    start_date: datetime.date = datetime.date(2026, 1, 1),
+    months: int = 18,
+    version_name: str = "Initial Plan FY26",
+    assumptions: ForecastAssumptions | None = None,
+) -> ForecastVersion:
+    """Build a full driver-based forecast and persist it.
+
+    Returns the created ForecastVersion with all lines attached.
+    """
+    computed_lines = await compute_forecast(session, start_date, months, assumptions)
+
+    # Create forecast version
+    version = ForecastVersion(name=version_name, is_active=True)
+    session.add(version)
+    await session.flush()
+
+    # Persist lines
+    for line_data in computed_lines:
+        line = ForecastLine(
+            version_id=version.id,
+            cost_center_id=line_data.cost_center_id,
+            period=line_data.period,
+            category=line_data.category,
+            amount=line_data.amount,
+            headcount_eop=line_data.headcount_eop,
+        )
+        session.add(line)
+
     await session.flush()
     await session.commit()
 
