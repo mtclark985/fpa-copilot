@@ -26,7 +26,7 @@ class Agent:
     """
 
     model: str = "claude-sonnet-4-6"
-    max_tokens: int = 4096
+    max_tokens: int = 16384
 
     def __init__(self) -> None:
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)

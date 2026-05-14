@@ -44,3 +44,6 @@ docker-compose.override.yml
 
 backend/diagnose_agent.py
 backend/analyze_all_months.py
+
+backend/diagnose_march.py
+backend/run_remaining_months.py
