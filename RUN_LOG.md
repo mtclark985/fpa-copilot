@@ -286,3 +286,15 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - All 59 tests pass
 - **Commit:** `feat(phase-4): data and assumptions API`
 
+## Phase 5: Data & Assumptions Frontend
+**Completed:** 2026-05-13
+
+- New page at `/data-and-assumptions` with 4 tabs (matching existing UI patterns)
+- **Company tab**: paginated employee table with search (name/ID), cost center filter, status filter (active/terminated/all), sortable columns, CSV export, pagination
+- **Hiring Plan tab**: two sections — Open Positions table and Recent Hires (last 6 months) table with source badge (planned/unplanned)
+- **Forecast Assumptions tab**: card layout, one card per assumption category (Merit, Attrition, Benefits, Payroll Tax, Bonus, Hire Pace) with current value, description, and "used in" note
+- **Simulator Events tab**: chronological events grouped by period with event type badges
+- Added navigation link in Layout.tsx and route in App.tsx
+- TypeScript compiles clean, all 59 tests pass
+- **Commit:** `feat(phase-5): data and assumptions page`
+

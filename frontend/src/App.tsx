@@ -6,6 +6,7 @@ import Forecast from "@/pages/Forecast";
 import Variances from "@/pages/Variances";
 import Close from "@/pages/Close";
 import Proposals from "@/pages/Proposals";
+import DataAndAssumptions from "@/pages/DataAndAssumptions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/variances" element={<Variances />} />
             <Route path="/close" element={<Close />} />
             <Route path="/proposals" element={<Proposals />} />
+            <Route path="/data-and-assumptions" element={<DataAndAssumptions />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
