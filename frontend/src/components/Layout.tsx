@@ -8,6 +8,7 @@ const navItems = [
   { to: "/close", label: "Close" },
   { to: "/proposals", label: "Proposals" },
   { to: "/data-and-assumptions", label: "Data & Assumptions" },
+  { to: "/what-if", label: "What If" },
 ];
 
 export default function Layout() {

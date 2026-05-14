@@ -317,3 +317,24 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - All 64 tests pass
 - **Commit:** `feat(phase-6): what-if scenario calculation engine`
 
+## Phase 7: What-If Simulator Frontend
+**Completed:** 2026-05-13
+
+- New page at `/what-if` with left panel (5 dials) and right panel (chart + delta)
+- **5 assumption dials** with range sliders:
+  - Annual Attrition Rate (5-25%, default 12%)
+  - Merit Increase (0-10%, default 4%)
+  - Benefits Load (10-25%, default 18%)
+  - Hire Pace / Quarter (0-5%, default 2%)
+  - Headcount Acceleration (0.5-1.5x, default 1.0x)
+- Each dial shows live numeric value, has individual reset button
+- **Chart**: two lines — Active Forecast (dashed gray) and Scenario (solid blue)
+- **Delta panel**: Total 18-month impact, FY landing impact, category breakdown (salary/bonus/benefits/taxes)
+- **500ms debounce** on dial inputs to prevent request flood
+- **Disclaimer banner**: "This is a scenario. Changes are not saved..."
+- **Reset All** button appears when any dial is modified
+- Loading state ("Recalculating scenario...") while API response pending
+- Added nav link and route
+- TypeScript compiles clean, all 64 tests pass
+- **Commit:** `feat(phase-7): what-if scenario simulator page`
+

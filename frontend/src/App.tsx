@@ -7,6 +7,7 @@ import Variances from "@/pages/Variances";
 import Close from "@/pages/Close";
 import Proposals from "@/pages/Proposals";
 import DataAndAssumptions from "@/pages/DataAndAssumptions";
+import WhatIf from "@/pages/WhatIf";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/close" element={<Close />} />
             <Route path="/proposals" element={<Proposals />} />
             <Route path="/data-and-assumptions" element={<DataAndAssumptions />} />
+            <Route path="/what-if" element={<WhatIf />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
