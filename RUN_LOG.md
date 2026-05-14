@@ -225,3 +225,18 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - Updated: Dashboard (forecast info + proposals banner), Forecast (version selector), Close (proposals notice), types
 - Clean commit history: 10 commits (1 per phase + branch setup)
 
+---
+
+# Run Log — Run 3
+
+## Phase 1: Branch Setup and Sanity Check
+**Started:** 2026-05-13
+
+- Created branch `run-3-transparency-and-simulator` from `run-2-approval-workflow`
+- Read all Section 0 files: RUN_LOG.md, DECISIONS.md, base.py, variance_detector.py, variance_attributor.py, proposal_generator.py, forecast_engine.py, monthly_simulator.py, Forecast.tsx, Dashboard.tsx, Proposals.tsx, Variances.tsx, forecast.py API
+- Verified Docker Postgres running, backend healthy, all Run 2 endpoints functional
+- Verified frontend TypeScript compiles clean
+- Confirmed Run 2 functionality intact: proposals endpoint returns data, forecast versions exist, dashboard KPIs load
+- Note: Active forecast version (v125) has only 3 lines (affected periods from proposal acceptance). Original v1 has all 18 months × 31 CCs = 1152 lines.
+- **Commit:** `chore(run-3): branch setup`
+
