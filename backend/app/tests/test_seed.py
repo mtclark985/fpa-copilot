@@ -49,7 +49,11 @@ async def test_every_employee_has_cost_center(db_session: AsyncSession) -> None:
 
 
 async def test_comp_within_bands(db_session: AsyncSession) -> None:
-    """Every employee's salary falls within their level's band (with COL adjustment)."""
+    """Seeded employees' salaries fall within their level's band (with COL adjustment).
+
+    Only checks originally seeded employees (E0001-E0500), not simulator-generated
+    hires which may have salary premiums.
+    """
     bands = {
         "L3": (70_000 * 0.85, 100_000 * 1.25),
         "L4": (95_000 * 0.85, 135_000 * 1.25),
@@ -57,8 +61,11 @@ async def test_comp_within_bands(db_session: AsyncSession) -> None:
         "L6": (165_000 * 0.85, 240_000 * 1.25),
         "L7": (220_000 * 0.85, 320_000 * 1.25),
     }
-    result = await db_session.execute(select(Employee))
+    result = await db_session.execute(
+        select(Employee).where(Employee.employee_number.like("E0%"))
+    )
     employees = result.scalars().all()
+    assert len(employees) >= 500
     for emp in employees:
         low, high = bands[emp.job_level]
         salary = float(emp.base_salary)

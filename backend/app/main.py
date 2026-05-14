@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import actuals, attribution, close, employees, forecast, health, kpis, proposals, variances
+from app.api import actuals, attribution, close, employees, forecast, health, kpis, proposals, transparency, variances
 
 
 def create_app() -> FastAPI:
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     application.include_router(variances.router, prefix="/api/v1")
     application.include_router(attribution.router, prefix="/api/v1")
     application.include_router(proposals.router, prefix="/api/v1")
+    application.include_router(transparency.router, prefix="/api/v1")
     application.include_router(kpis.router, prefix="/api/v1")
 
     return application

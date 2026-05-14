@@ -16,27 +16,18 @@ from app.models.cost_center import CostCenter
 from app.models.employee import Employee
 from app.models.forecast import ForecastLine, ForecastVersion
 from app.models.position import Position
-
-# FICA wage base for 2026
-FICA_WAGE_BASE = 168_000
-FICA_RATE = 0.0765  # 6.2% SS + 1.45% Medicare (employer portion)
-MEDICARE_ONLY_RATE = 0.0145  # Medicare on earnings above FICA wage base
-BENEFITS_LOAD = 0.18  # 18% of base salary
-ANNUAL_ATTRITION_RATE = 0.12
-MERIT_MONTH = 4  # April
-MERIT_AVG_PCT = 0.04
-QUARTERLY_HIRE_GROWTH = 0.02  # 2% of headcount per quarter as new hires
+from app.services.forecast_assumptions import DEFAULT_ASSUMPTIONS, ForecastAssumptions
 
 
-def _monthly_fica(annual_salary: float) -> float:
+def _monthly_fica(annual_salary: float, assumptions: ForecastAssumptions) -> float:
     """Calculate monthly employer FICA cost for a given annual salary."""
     monthly = annual_salary / 12
-    if annual_salary <= FICA_WAGE_BASE:
-        return monthly * FICA_RATE
+    if annual_salary <= assumptions.fica_wage_base:
+        return monthly * assumptions.fica_rate
     else:
         # SS portion capped, Medicare continues
-        ss_monthly = (FICA_WAGE_BASE / 12) * 0.062
-        medicare_monthly = monthly * MEDICARE_ONLY_RATE
+        ss_monthly = (assumptions.fica_wage_base / 12) * 0.062
+        medicare_monthly = monthly * assumptions.medicare_only_rate
         return ss_monthly + medicare_monthly
 
 
@@ -45,11 +36,15 @@ async def generate_forecast(
     start_date: datetime.date = datetime.date(2026, 1, 1),
     months: int = 18,
     version_name: str = "Initial Plan FY26",
+    assumptions: ForecastAssumptions | None = None,
 ) -> ForecastVersion:
     """Build a full driver-based forecast and persist it.
 
     Returns the created ForecastVersion with all lines attached.
     """
+    if assumptions is None:
+        assumptions = DEFAULT_ASSUMPTIONS
+
     random.seed(42)
 
     # Load current state
@@ -104,10 +99,10 @@ async def generate_forecast(
         period = f"{year:04d}-{month:02d}"
 
         # Apply merit cycle in April
-        if month == MERIT_MONTH:
+        if month == assumptions.merit_month:
             for cc_id in cc_employees:
                 for emp_data in cc_employees[cc_id]:
-                    merit = random.gauss(MERIT_AVG_PCT, 0.01)
+                    merit = random.gauss(assumptions.merit_avg_pct, 0.01)
                     merit = max(0.0, min(0.08, merit))  # clamp 0-8%
                     emp_data["salary"] = float(emp_data["salary"]) * (1 + merit)
 
@@ -123,7 +118,7 @@ async def generate_forecast(
         # Add growth hires (2% of headcount per quarter, evenly across 3 months)
         if month % 3 == 1:  # first month of quarter
             total_hc = sum(len(emps) for emps in cc_employees.values())
-            new_hires = max(1, int(total_hc * QUARTERLY_HIRE_GROWTH / 3))
+            new_hires = max(1, int(total_hc * assumptions.quarterly_hire_growth / 3))
             # Distribute across cost centers proportionally
             cc_ids = [cc_id for cc_id in cc_employees if cc_employees[cc_id]]
             for _ in range(new_hires):
@@ -137,7 +132,7 @@ async def generate_forecast(
                 })
 
         # Apply monthly attrition
-        monthly_attrition = ANNUAL_ATTRITION_RATE / 12
+        monthly_attrition = assumptions.annual_attrition_rate / 12
         for cc_id in list(cc_employees.keys()):
             emps = cc_employees[cc_id]
             departures = int(len(emps) * monthly_attrition)
@@ -152,8 +147,8 @@ async def generate_forecast(
                 continue
 
             total_salary = sum(float(e["salary"]) / 12 for e in emps)
-            total_benefits = sum(float(e["salary"]) * BENEFITS_LOAD / 12 for e in emps)
-            total_taxes = sum(_monthly_fica(float(e["salary"])) for e in emps)
+            total_benefits = sum(float(e["salary"]) * assumptions.benefits_load_pct / 12 for e in emps)
+            total_taxes = sum(_monthly_fica(float(e["salary"]), assumptions) for e in emps)
 
             # Bonus: accrued monthly, target % of salary
             total_bonus = sum(

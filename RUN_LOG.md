@@ -269,3 +269,20 @@ All 9 phases completed on branch `run-2-approval-workflow`. Final state:
 - TypeScript compiles clean, all 53 tests pass
 - **Commit:** `feat(phase-3): extend forecast visibility to 18 months`
 
+## Phase 4: Data & Assumptions Backend
+**Completed:** 2026-05-13
+
+- Created `forecast_assumptions.py`: single source of truth for all forecast assumptions (ForecastAssumptions dataclass + ASSUMPTIONS_METADATA structured list)
+- Refactored `forecast_engine.py`: now accepts `assumptions: ForecastAssumptions` parameter; defaults to `DEFAULT_ASSUMPTIONS`; all module-level constants removed
+- Updated `_monthly_fica()` to take assumptions parameter
+- Created `transparency.py` API router with 4 endpoints:
+  - `GET /transparency/employees` — paginated, filterable (search, cost_center, status), sortable
+  - `GET /transparency/hiring-plan` — open positions + recent hires (last 6 months)
+  - `GET /transparency/assumptions` — structured JSON with name, value, unit, description, used_in
+  - `GET /transparency/simulator-events` — chronological story variances from monthly_simulator.py
+- 6 transparency tests (using ASGI transport with test DB override)
+- Fixed `test_comp_within_bands` to only check seeded employees (simulator hires have premiums)
+- Updated `test_forecast.py` to use `DEFAULT_ASSUMPTIONS` instead of removed constants
+- All 59 tests pass
+- **Commit:** `feat(phase-4): data and assumptions API`
+

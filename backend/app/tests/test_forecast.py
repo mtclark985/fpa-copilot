@@ -1,11 +1,12 @@
 """Test forecast engine math with known inputs."""
 
-from app.services.forecast_engine import _monthly_fica, BENEFITS_LOAD
+from app.services.forecast_assumptions import DEFAULT_ASSUMPTIONS
+from app.services.forecast_engine import _monthly_fica
 
 
 def test_fica_below_wage_base() -> None:
     """FICA on salary below the wage base uses the full rate."""
-    result = _monthly_fica(120_000)
+    result = _monthly_fica(120_000, DEFAULT_ASSUMPTIONS)
     expected = (120_000 / 12) * 0.0765
     assert abs(result - expected) < 0.01
 
@@ -17,21 +18,21 @@ def test_fica_above_wage_base() -> None:
     ss_monthly = (168_000 / 12) * 0.062
     medicare_monthly = monthly * 0.0145
     expected = ss_monthly + medicare_monthly
-    result = _monthly_fica(salary)
+    result = _monthly_fica(salary, DEFAULT_ASSUMPTIONS)
     assert abs(result - expected) < 0.01
 
 
 def test_benefits_load_rate() -> None:
     """Benefits load is 18% of base salary."""
-    assert BENEFITS_LOAD == 0.18
+    assert DEFAULT_ASSUMPTIONS.benefits_load_pct == 0.18
     salary = 120_000
-    monthly_benefits = salary * BENEFITS_LOAD / 12
+    monthly_benefits = salary * DEFAULT_ASSUMPTIONS.benefits_load_pct / 12
     assert abs(monthly_benefits - 1800.0) < 0.01
 
 
 def test_fica_boundary() -> None:
     """FICA at exactly the wage base should use the full rate."""
-    result = _monthly_fica(168_000)
+    result = _monthly_fica(168_000, DEFAULT_ASSUMPTIONS)
     expected = (168_000 / 12) * 0.0765
     assert abs(result - expected) < 0.01
 
