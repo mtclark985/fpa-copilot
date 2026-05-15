@@ -468,7 +468,7 @@ function SimulatorEventsTab() {
     queryFn: () => apiFetch<SimulatorEvent[]>("/transparency/simulator-events"),
   });
 
-  if (isLoading) return <div className="text-muted-foreground text-center py-12">Loading events...</div>;
+ 
 
   // Group by period
   const grouped = useMemo(() => {
@@ -481,6 +481,8 @@ function SimulatorEventsTab() {
     }
     return Array.from(map.entries());
   }, [data]);
+
+ if (isLoading) return <div className="text-muted-foreground text-center py-12">Loading events...</div>;
 
   const eventTypeBadge: Record<string, string> = {
     unplanned_hire_cluster: "bg-blue-100 text-blue-800",
