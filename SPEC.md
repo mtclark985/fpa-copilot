@@ -51,7 +51,7 @@ No new dependencies expected. Use what Run 1 already established:
 - Backend: Python 3.12, FastAPI, SQLAlchemy 2.0 async, Alembic, Pydantic v2, anthropic SDK
 - Frontend: React 18, Vite, TypeScript, Tailwind, shadcn/ui, TanStack Query, Recharts
 - Database: PostgreSQL 16
-- Agent model: `claude-sonnet-4-6` (matches base.py after the Run 1 fix)
+- Agent model: `claude-haiku-4-5` (matches base.py)
 
 If you find yourself needing a new dependency, stop and document in `BLOCKERS.md` before installing.
 

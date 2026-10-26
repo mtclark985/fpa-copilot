@@ -22,7 +22,7 @@ A living forecast platform where the comp expense forecast continuously updates 
 | Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0 (async), Alembic |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, Recharts |
 | Database | PostgreSQL 16 (Docker) |
-| AI | Anthropic Claude API (Sonnet) |
+| AI | Anthropic Claude API (Haiku) |
 | Testing | pytest + pytest-asyncio |
 
 ## Quick Start
